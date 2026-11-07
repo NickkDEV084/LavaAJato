@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f8fc">
+  <title>Acessar sua conta | LavaAjato</title>
+  <link rel="stylesheet" href="css/auth.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body data-page="auth">
+  <main class="auth-shell">
+    <section class="auth-showcase" aria-label="Sobre o LavaAjato">
+      <a class="brand" href="index.html" aria-label="LavaAjato, página inicial">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40" fill="none"><path d="M20 4C15.3 11.2 9 17.2 9 24.4A11 11 0 0 0 31 24.4C31 17.2 24.7 11.2 20 4Z" fill="currentColor"/><path d="M15 25.5c.4 3 2.2 4.7 5.2 5" stroke="#fff" stroke-width="2.3" stroke-linecap="round"/></svg></span>
+        <span>Lava<span>Ajato</span></span>
+      </a>
+
+      <div class="showcase-copy">
+        <span class="eyebrow"><span></span> ACESSO DO CLIENTE</span>
+        <h1>Seu próximo cuidado começa por aqui.</h1>
+        <p>Acesse sua conta para continuar e acompanhe seus pedidos pelo e-mail informado no agendamento.</p>
+      </div>
+
+      <div class="showcase-card" aria-hidden="true">
+        <div class="showcase-card-head"><span>SEU PRÓXIMO ATENDIMENTO</span><span class="live-dot">● Ao vivo</span></div>
+        <div class="showcase-stats"><div><strong>01</strong><span>Pedido</span></div><div><strong>✓</strong><span>Confirmação</span></div><div><strong>24h</strong><span>Praticidade</span></div></div>
+        <div class="showcase-progress"><span></span></div>
+        <div class="showcase-foot"><span>Acompanhe suas solicitações</span><span>↗</span></div>
+      </div>
+      <div class="showcase-orb orb-one"></div><div class="showcase-orb orb-two"></div>
+      <p class="showcase-footer">Feito para quem cuida de cada detalhe.</p>
+    </section>
+
+    <section class="auth-main">
+      <div class="mobile-brand brand" aria-hidden="true"><span class="brand-mark"><svg viewBox="0 0 40 40" fill="none"><path d="M20 4C15.3 11.2 9 17.2 9 24.4A11 11 0 0 0 31 24.4C31 17.2 24.7 11.2 20 4Z" fill="currentColor"/><path d="M15 25.5c.4 3 2.2 4.7 5.2 5" stroke="#fff" stroke-width="2.3" stroke-linecap="round"/></svg></span><span>Lava<span>Ajato</span></span></div>
+      <div class="auth-card">
+        <div class="auth-heading"><span class="eyebrow">BEM-VINDO AO LAVAAJATO</span><h2>Seu atendimento, mais simples.</h2><p>Acesse sua conta ou crie uma gratuitamente.</p></div>
+
+        <div class="auth-tabs" role="tablist" aria-label="Acessar ou criar conta">
+          <button id="tab-login" class="auth-tab" type="button" role="tab" aria-controls="panel-login" data-auth-tab="login">Entrar</button>
+          <button id="tab-register" class="auth-tab" type="button" role="tab" aria-controls="panel-register" data-auth-tab="register">Criar conta</button>
+        </div>
+
+        <p id="auth-notice" class="auth-notice" role="alert" aria-live="polite" hidden></p>
+
+        <section id="panel-login" class="auth-panel" role="tabpanel" aria-labelledby="tab-login" data-auth-panel="login">
+          <form id="login-form" novalidate>
+            <label for="login-email">E-mail</label>
+            <input id="login-email" name="email" type="email" autocomplete="email" placeholder="voce@seulavajato.com.br" required>
+            <div class="field-heading"><label for="login-password">Senha</label><span>Use a senha da sua conta</span></div>
+            <div class="password-field"><input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="Digite sua senha" required><button type="button" data-toggle-password="login-password" aria-label="Mostrar senha">Mostrar</button></div>
+            <button class="submit-button" type="submit">Entrar na minha conta <span aria-hidden="true">→</span></button>
+          </form>
+          <p class="auth-switch">Ainda não tem uma conta? <button type="button" data-auth-tab="register">Criar conta grátis</button></p>
+        </section>
+
+        <section id="panel-register" class="auth-panel" role="tabpanel" aria-labelledby="tab-register" data-auth-panel="register" hidden>
+          <form id="register-form" novalidate>
+            <div class="form-row">
+              <div class="field"><label for="register-name">Nome completo</label><input id="register-name" name="name" type="text" autocomplete="name" placeholder="Como podemos te chamar?" minlength="2" required></div>
+              <div class="field"><label for="register-phone">Celular</label><input id="register-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="(11) 99999-9999" required></div>
+            </div>
+            <div class="field"><label for="register-email">E-mail</label><input id="register-email" name="email" type="email" autocomplete="email" placeholder="voce@seulavajato.com.br" required></div>
+            <div class="form-row">
+              <div class="field"><label for="register-password">Senha</label><div class="password-field"><input id="register-password" name="password" type="password" autocomplete="new-password" placeholder="Mínimo de 8 caracteres" required><button type="button" data-toggle-password="register-password" aria-label="Mostrar senha">Mostrar</button></div></div>
+              <div class="field"><label for="register-confirm">Confirmar senha</label><input id="register-confirm" name="confirmPassword" type="password" autocomplete="new-password" placeholder="Repita sua senha" required></div>
+            </div>
+            <p class="password-hint">Use pelo menos 8 caracteres, com uma letra e um número.</p>
+            <label class="terms"><input name="acceptTerms" type="checkbox" required><span>Estou ciente de que esta conta é uma demonstração e fica salva neste navegador.</span></label>
+            <button class="submit-button" type="submit">Criar minha conta <span aria-hidden="true">→</span></button>
+          </form>
+          <p class="auth-switch">Já tem uma conta? <button type="button" data-auth-tab="login">Entrar</button></p>
+        </section>
+
+        <p class="demo-note"><span aria-hidden="true">ⓘ</span> Protótipo em desenvolvimento. Os dados desta conta ficam apenas neste navegador.</p>
+        <a class="client-entry" href="index.html"><span class="client-entry-icon" aria-hidden="true">↗</span><span><strong>Quer agendar uma lavagem?</strong><small>Volte para a página inicial</small></span></a>
+      </div>
+      <footer class="auth-footer"><span>© 2026 LavaAjato</span><span>Organize. Atenda. Cresça.</span></footer>
+    </section>
+  </main>
+</body>
+</html>
