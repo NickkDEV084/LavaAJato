@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agenda e fila de atendimento | LavaAjato</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="schedule">
+  <div class="layout">
+    <aside class="menu">
+      <h1 class="logo">LavaAjato</h1>
+      <nav>
+        <a href="gestao.html">Painel</a>
+        <a href="servicos.html">Serviços e preços</a>
+        <a href="agenda.html" class="ativo">Agenda e fila</a>
+        <a href="pedidos.html">Pedidos e pagamentos</a>
+        <a href="produtos.html">Produtos e estoque</a>
+        <a href="status.html">Status do serviço</a>
+        <a href="cancelamentos.html">Cancelamentos</a>
+        <a href="relatorios.html">Relatórios</a>
+      </nav>
+    </aside>
+    <main class="conteudo">
+      <header class="topo"><h2>Agenda e fila de atendimento</h2></header>
+      <section class="card">
+        <h3>Novo agendamento</h3>
+        <form action="#" method="post" class="form-grid">
+          <label>Cliente<select name="cliente"><option>Selecione</option></select></label>
+          <label>Veículo<select name="veiculo"><option>Selecione</option></select></label>
+          <label>Serviço<select name="servico"><option>Selecione</option></select></label>
+          <label>Data<input type="date" name="data"></label>
+          <label>Horário<input type="time" name="hora"></label>
+          <div class="acoes"><button type="submit" class="btn">Agendar</button><button type="reset" class="btn btn-sec">Limpar</button></div>
+        </form>
+      </section>
+      <section class="card">
+        <h3>Lista</h3>
+        <div class="tabela-wrap">
+          <table>
+            <thead><tr><th>Posição</th><th>Cliente</th><th>Serviço</th><th>Data/hora</th><th>Ações</th></tr></thead>
+            <tbody>
+            <tr><td>1</td><td>Nome do cliente</td><td>Lavagem simples</td><td>05/11 09:00</td><td><a href="#">Reagendar</a> · <a href="#">Cancelar</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

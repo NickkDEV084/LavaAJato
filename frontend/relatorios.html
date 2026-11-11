@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Relatórios | LavaAjato</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="reports">
+  <div class="layout">
+    <aside class="menu">
+      <h1 class="logo">LavaAjato</h1>
+      <nav>
+        <a href="gestao.html">Painel</a>
+        <a href="servicos.html">Serviços e preços</a>
+        <a href="agenda.html">Agenda e fila</a>
+        <a href="pedidos.html">Pedidos e pagamentos</a>
+        <a href="produtos.html">Produtos e estoque</a>
+        <a href="status.html">Status do serviço</a>
+        <a href="cancelamentos.html">Cancelamentos</a>
+        <a href="relatorios.html" class="ativo">Relatórios</a>
+      </nav>
+    </aside>
+    <main class="conteudo">
+      <header class="topo"><h2>Relatórios</h2></header>
+      <section class="card">
+        <h3>Filtros</h3>
+        <form action="#" method="get" class="form-grid">
+          <label>Tipo<select name="tipo"><option>Faturamento</option><option>Serviços realizados</option><option>Estoque</option><option>Avaliações</option></select></label>
+          <label>De<input type="date" name="de"></label>
+          <label>Até<input type="date" name="ate"></label>
+          <div class="acoes"><button type="submit" class="btn">Gerar relatório</button></div>
+        </form>
+      </section>
+      <section class="card">
+        <h3>Lista</h3>
+        <div class="tabela-wrap">
+          <table>
+            <thead><tr><th>Data</th><th>Descrição</th><th>Valor</th></tr></thead>
+            <tbody>
+            <tr><td>05/11/2026</td><td>Exemplo de linha do relatório</td><td>R$ 0,00</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

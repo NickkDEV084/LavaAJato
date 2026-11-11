@@ -1,4 +1,5 @@
 import { clearNotice, setFormBusy, showNotice } from "../../core/ui.js";
+import { getPostAuthDestination } from "./auth-navigation.js";
 import { loginAccount, registerAccount } from "./auth-service.js";
 
 export function initAuthPage() {
@@ -53,7 +54,7 @@ export function initAuthPage() {
 
     try {
       await loginAccount({ email: formData.get("email"), password: formData.get("password") });
-      window.location.assign("index.html");
+      window.location.assign(getPostAuthDestination());
     } catch (error) {
       showNotice(notice, error.message || "Não foi possível entrar. Tente novamente.");
       setFormBusy(loginForm, false);
@@ -76,7 +77,7 @@ export function initAuthPage() {
         confirmPassword: formData.get("confirmPassword"),
         acceptTerms: formData.get("acceptTerms") === "on",
       });
-      window.location.assign("index.html");
+      window.location.assign(getPostAuthDestination());
     } catch (error) {
       showNotice(notice, error.message || "Não foi possível criar a conta. Tente novamente.");
       setFormBusy(registerForm, false);

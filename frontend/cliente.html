@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102a43">
+  <title>Área do cliente | LavaAjato</title>
+  <link rel="stylesheet" href="css/client.css">
+  <link rel="stylesheet" href="css/customer-area.css">
+</head>
+<body class="client-page customer-area-page" data-page="customer-area">
+  <header class="client-header">
+    <a class="client-brand" href="index.html" aria-label="LavaAjato, página inicial">
+      <span class="brand-icon" aria-hidden="true">L</span>
+      <span>Lava<span>Ajato</span></span>
+    </a>
+    <nav class="client-nav" aria-label="Navegação da área do cliente">
+      <a href="index.html">Site</a>
+      <a href="#appointments">Agendamentos</a>
+      <a href="#profile">Perfil</a>
+      <button id="customer-sign-out" class="customer-sign-out" type="button">Sair</button>
+    </nav>
+  </header>
+
+  <main class="customer-main">
+    <section class="customer-welcome" aria-labelledby="customer-title">
+      <div>
+        <p class="client-eyebrow">ÁREA DO CLIENTE</p>
+        <h1 id="customer-title">Olá, <span id="customer-welcome-name">cliente</span>.</h1>
+        <p>Consulte seus horários, acompanhe os status e mantenha seus dados atualizados.</p>
+      </div>
+      <a class="customer-button customer-button-primary" href="#new-appointment">Agendar lavagem</a>
+    </section>
+
+    <div id="customer-notice" class="customer-notice" role="status" aria-live="polite" hidden></div>
+
+    <section class="customer-section" id="profile" aria-labelledby="profile-title">
+      <div class="customer-section-heading">
+        <div>
+          <p class="client-eyebrow">SEUS DADOS</p>
+          <h2 id="profile-title">Meu perfil</h2>
+        </div>
+        <p>Esses dados pertencem à sua conta e podem ser atualizados quando precisar.</p>
+      </div>
+      <form id="profile-form" class="customer-form">
+        <label>Nome completo
+          <input name="name" autocomplete="name" required minlength="2">
+        </label>
+        <label>E-mail
+          <input name="email" type="email" autocomplete="email" required>
+        </label>
+        <label>Telefone
+          <input name="phone" type="tel" autocomplete="tel" inputmode="tel">
+        </label>
+        <label>Endereço <span class="customer-optional">opcional</span>
+          <input name="address" autocomplete="street-address">
+        </label>
+        <div class="customer-form-actions">
+          <button class="customer-button customer-button-primary" type="submit">Salvar perfil</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="customer-section" id="appointments" aria-labelledby="appointments-title">
+      <div class="customer-section-heading">
+        <div>
+          <p class="client-eyebrow">SEUS HORÁRIOS</p>
+          <h2 id="appointments-title">Meus agendamentos</h2>
+        </div>
+        <p>Veja os detalhes, remarque ou cancele seus agendamentos ativos.</p>
+      </div>
+      <div id="appointments-empty" class="customer-empty" hidden>
+        <strong>Você ainda não tem agendamentos</strong>
+        <p>Escolha um serviço e um horário para criar o primeiro.</p>
+        <a class="customer-button customer-button-primary" href="#new-appointment">Agendar lavagem</a>
+      </div>
+      <div id="appointments-list" class="appointments-list" aria-live="polite"></div>
+    </section>
+
+    <div class="customer-booking-grid">
+      <section class="customer-section" id="new-appointment" aria-labelledby="new-appointment-title">
+        <div class="customer-section-heading">
+          <div>
+            <p class="client-eyebrow">NOVO HORÁRIO</p>
+            <h2 id="new-appointment-title">Agendar lavagem</h2>
+          </div>
+        </div>
+        <form id="appointment-form" class="customer-form customer-form-single">
+          <label>Serviço
+            <select name="serviceId" required>
+              <option value="">Carregando serviços…</option>
+            </select>
+          </label>
+          <div class="customer-date-time">
+            <label>Data
+              <input name="date" type="date" required>
+            </label>
+            <label>Horário
+              <input name="time" type="time" required>
+            </label>
+          </div>
+          <button class="customer-button customer-button-primary" type="submit">Confirmar agendamento</button>
+        </form>
+      </section>
+
+      <section class="customer-section" id="available-services" aria-labelledby="available-services-title">
+        <div class="customer-section-heading">
+          <div>
+            <p class="client-eyebrow">CATÁLOGO</p>
+            <h2 id="available-services-title">Serviços disponíveis</h2>
+          </div>
+        </div>
+        <div id="available-services-list" class="available-services-list" aria-live="polite"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="client-footer">
+    <a class="client-brand" href="index.html"><span class="brand-icon" aria-hidden="true">L</span><span>Lava<span>Ajato</span></span></a>
+    <p>Seu próximo brilho começa por aqui.</p>
+    <a href="index.html">Página inicial</a>
+  </footer>
+
+  <dialog id="appointment-details-dialog" class="customer-dialog" aria-labelledby="details-title">
+    <div class="customer-dialog-heading">
+      <div><p class="client-eyebrow">AGENDAMENTO</p><h2 id="details-title">Detalhes</h2></div>
+      <button class="customer-dialog-close" type="button" data-close-dialog aria-label="Fechar detalhes">×</button>
+    </div>
+    <dl class="appointment-details">
+      <div><dt>Serviço</dt><dd id="details-service"></dd></div>
+      <div><dt>Data</dt><dd id="details-date"></dd></div>
+      <div><dt>Horário</dt><dd id="details-time"></dd></div>
+      <div><dt>Status</dt><dd id="details-status"></dd></div>
+      <div><dt>Valor</dt><dd id="details-price"></dd></div>
+      <div><dt>Duração estimada</dt><dd id="details-duration"></dd></div>
+    </dl>
+    <button class="customer-button customer-button-secondary" type="button" data-close-dialog>Fechar</button>
+  </dialog>
+
+  <dialog id="appointment-reschedule-dialog" class="customer-dialog" aria-labelledby="reschedule-title">
+    <div class="customer-dialog-heading">
+      <div><p class="client-eyebrow">ALTERAR HORÁRIO</p><h2 id="reschedule-title">Remarcar agendamento</h2></div>
+      <button class="customer-dialog-close" type="button" data-close-dialog aria-label="Fechar remarcação">×</button>
+    </div>
+    <form id="reschedule-form" class="customer-form customer-form-single">
+      <input name="appointmentId" type="hidden">
+      <label>Nova data<input name="date" type="date" required></label>
+      <label>Novo horário<input name="time" type="time" required></label>
+      <div class="customer-form-actions">
+        <button class="customer-button customer-button-primary" type="submit">Salvar novo horário</button>
+        <button class="customer-button customer-button-secondary" type="button" data-close-dialog>Voltar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

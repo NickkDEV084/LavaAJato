@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clientes e veículos | LavaAjato</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="customers">
+  <div class="layout">
+    <aside class="menu">
+      <h1 class="logo">LavaAjato</h1>
+      <nav>
+        <a href="gestao.html">Painel</a>
+        <a href="servicos.html">Serviços e preços</a>
+        <a href="agenda.html">Agenda e fila</a>
+        <a href="pedidos.html">Pedidos e pagamentos</a>
+        <a href="produtos.html">Produtos e estoque</a>
+        <a href="status.html">Status do serviço</a>
+        <a href="cancelamentos.html">Cancelamentos</a>
+        <a href="relatorios.html">Relatórios</a>
+      </nav>
+    </aside>
+    <main class="conteudo">
+      <header class="topo"><h2>Clientes e veículos</h2></header>
+      <section class="card">
+        <h3>Novo cliente</h3>
+        <form action="#" method="post" class="form-grid">
+          <label>Nome<input type="text" name="nome"></label>
+          <label>CPF<input type="text" name="cpf"></label>
+          <label>Telefone<input type="tel" name="telefone"></label>
+          <label>E-mail<input type="email" name="email"></label>
+          <div class="acoes"><button type="submit" class="btn">Salvar</button><button type="reset" class="btn btn-sec">Limpar</button></div>
+        </form>
+      </section>
+      <section class="card">
+        <h3>Novo veículo</h3>
+        <form action="#" method="post" class="form-grid">
+          <label>Cliente<select name="cliente"><option>Selecione</option></select></label>
+          <label>Placa<input type="text" name="placa"></label>
+          <label>Modelo<input type="text" name="modelo"></label>
+          <label>Cor<input type="text" name="cor"></label>
+          <div class="acoes"><button type="submit" class="btn">Salvar veículo</button><button type="reset" class="btn btn-sec">Limpar</button></div>
+        </form>
+      </section>
+      <section class="card">
+        <h3>Lista</h3>
+        <div class="tabela-wrap">
+          <table>
+            <thead><tr><th>Cliente</th><th>Telefone</th><th>Veículo</th><th>Placa</th><th>Ações</th></tr></thead>
+            <tbody>
+            <tr><td>Nome do cliente</td><td>(81) 90000-0000</td><td>Modelo</td><td>ABC-1D23</td><td><a href="#">Editar</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

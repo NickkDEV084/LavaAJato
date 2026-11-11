@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cancelamentos | LavaAjato</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="cancellations">
+  <div class="layout">
+    <aside class="menu">
+      <h1 class="logo">LavaAjato</h1>
+      <nav>
+        <a href="gestao.html">Painel</a>
+        <a href="servicos.html">Serviços e preços</a>
+        <a href="agenda.html">Agenda e fila</a>
+        <a href="pedidos.html">Pedidos e pagamentos</a>
+        <a href="produtos.html">Produtos e estoque</a>
+        <a href="status.html">Status do serviço</a>
+        <a href="cancelamentos.html" class="ativo">Cancelamentos</a>
+        <a href="relatorios.html">Relatórios</a>
+      </nav>
+    </aside>
+    <main class="conteudo">
+      <header class="topo"><h2>Cancelamentos</h2></header>
+      <section class="card">
+        <h3>Registrar cancelamento</h3>
+        <form action="#" method="post" class="form-grid">
+          <label>Pedido/agendamento<select name="pedido"><option>Selecione</option></select></label>
+          <label>Motivo<textarea name="motivo" rows="3"></textarea></label>
+          <div class="acoes"><button type="submit" class="btn">Cancelar atendimento</button><button type="reset" class="btn btn-sec">Limpar</button></div>
+        </form>
+      </section>
+      <section class="card">
+        <h3>Lista</h3>
+        <div class="tabela-wrap">
+          <table>
+            <thead><tr><th>Nº</th><th>Cliente</th><th>Motivo</th><th>Data</th></tr></thead>
+            <tbody>
+            <tr><td>001</td><td>Nome do cliente</td><td>Motivo do cancelamento</td><td>05/11/2026</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

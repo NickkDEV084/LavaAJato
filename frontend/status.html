@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Status do serviço | LavaAjato</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="service-status">
+  <div class="layout">
+    <aside class="menu">
+      <h1 class="logo">LavaAjato</h1>
+      <nav>
+        <a href="gestao.html">Painel</a>
+        <a href="servicos.html">Serviços e preços</a>
+        <a href="agenda.html">Agenda e fila</a>
+        <a href="pedidos.html">Pedidos e pagamentos</a>
+        <a href="produtos.html">Produtos e estoque</a>
+        <a href="status.html" class="ativo">Status do serviço</a>
+        <a href="cancelamentos.html">Cancelamentos</a>
+        <a href="relatorios.html">Relatórios</a>
+      </nav>
+    </aside>
+    <main class="conteudo">
+      <header class="topo"><h2>Status do serviço</h2></header>
+      <section class="card">
+        <h3>Acompanhamento</h3>
+        <ol class="etapas">
+          <li class="feito">Recebido</li>
+          <li class="atual">Em lavagem</li>
+          <li>Secagem</li>
+          <li>Finalizado</li>
+          <li>Entregue</li>
+        </ol>
+      </section>
+      <section class="card">
+        <h3>Atualizar status</h3>
+        <form action="#" method="post" class="form-grid">
+          <label>Pedido<select name="pedido"><option>Selecione</option></select></label>
+          <label>Novo status<select name="status"><option>Selecione</option></select></label>
+          <label>Observação<textarea name="obs" rows="3"></textarea></label>
+          <div class="acoes"><button type="submit" class="btn">Atualizar</button><button type="reset" class="btn btn-sec">Limpar</button></div>
+        </form>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
