@@ -60,9 +60,10 @@ export function initCustomerPage() {
   function loadProfile() {
     const profile = getCustomerProfile();
     profileForm.elements.name.value = profile.name;
-    profileForm.elements.email.value = profile.email;
     profileForm.elements.phone.value = profile.phone;
-    profileForm.elements.address.value = profile.address;
+    profileForm.elements.car.value = profile.car;
+    profileForm.elements.brand.value = profile.brand;
+    profileForm.elements.plate.value = profile.plate;
     document.querySelector("#customer-welcome-name").textContent = profile.name.split(" ")[0] || "cliente";
   }
 
@@ -100,6 +101,9 @@ export function initCustomerPage() {
     document.querySelector("#details-status").textContent = statusLabels[appointment.status] || appointment.status;
     document.querySelector("#details-price").textContent = currency.format(Number(appointment.servicePrice) || 0);
     document.querySelector("#details-duration").textContent = `${Number(appointment.serviceDuration) || 0} min`;
+    document.querySelector("#details-car").textContent = appointment.car || "—";
+    document.querySelector("#details-brand").textContent = appointment.brand || "—";
+    document.querySelector("#details-plate").textContent = appointment.plate || "—";
     detailsDialog.showModal();
   }
 
@@ -180,9 +184,10 @@ export function initCustomerPage() {
     try {
       const profile = saveCustomerProfile({
         name: data.get("name"),
-        email: data.get("email"),
         phone: data.get("phone"),
-        address: data.get("address"),
+        car: data.get("car"),
+        brand: data.get("brand"),
+        plate: data.get("plate"),
       });
       document.querySelector("#customer-welcome-name").textContent = profile.name.split(" ")[0];
       showNotice("Perfil atualizado.", "success");
@@ -234,7 +239,7 @@ export function initCustomerPage() {
 
   document.querySelector("#customer-sign-out").addEventListener("click", () => {
     signOut();
-    window.location.replace("index.html");
+    window.location.replace("auth.html?next=cliente.html");
   });
 
   window.addEventListener("storage", (event) => {

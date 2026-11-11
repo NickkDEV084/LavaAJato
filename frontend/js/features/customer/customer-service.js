@@ -1,5 +1,4 @@
 import { readJson, writeJson } from "../../core/storage.js";
-import { isValidEmail, normalizeEmail } from "../../core/validation.js";
 import { getSession } from "../auth/auth-repository.js";
 import { getActiveServices } from "../services/service-repository.js";
 
@@ -47,39 +46,36 @@ export function getCustomerProfile() {
     name: user.name || "",
     email: user.email || "",
     phone: user.phone || "",
-    address: user.address || "",
+    car: user.car || "",
+    brand: user.brand || "",
+    plate: user.plate || "",
   };
 }
 
-export function saveCustomerProfile({ name, email, phone, address }) {
+export function saveCustomerProfile({ name, phone, car, brand, plate }) {
   const customerId = currentCustomerId();
   const users = readUsers();
   const user = users.find((item) => item.id === customerId);
   if (!user) throw new Error("Não foi possível localizar o perfil desta conta.");
 
   const cleanName = String(name || "").trim().replace(/\s+/g, " ");
-  const cleanEmail = normalizeEmail(String(email || ""));
   const cleanPhone = String(phone || "").trim();
   if (cleanName.length < 2) throw new Error("Informe seu nome completo.");
-  if (!isValidEmail(cleanEmail)) throw new Error("Informe um e-mail válido.");
-  if (users.some((item) => item.id !== customerId && normalizeEmail(item.email) === cleanEmail)) {
-    throw new Error("Este e-mail já está vinculado a outra conta.");
-  }
 
   Object.assign(user, {
     name: cleanName,
-    email: cleanEmail,
     phone: cleanPhone,
-    address: String(address || "").trim(),
+    car: String(car || "").trim(),
+    brand: String(brand || "").trim(),
+    plate: String(plate || "").trim().toLocaleUpperCase("pt-BR"),
     updatedAt: new Date().toISOString(),
   });
   writeJson(localStorage, USERS_KEY, users);
 
-  // Mantém os dados visíveis da sessão atual em sincronia com o perfil.
+  // O e-mail continua reservado à autenticação; só o nome é sincronizado aqui.
   const session = readJson(sessionStorage, SESSION_KEY, null);
   if (session?.user?.id === customerId) {
     session.user.name = cleanName;
-    session.user.email = cleanEmail;
     writeJson(sessionStorage, SESSION_KEY, session);
   }
 
@@ -112,6 +108,7 @@ export function getCustomerAppointment(appointmentId) {
 
 export function createCustomerAppointment({ serviceId, date, time }) {
   const customerId = currentCustomerId();
+  const profile = getCustomerProfile();
   validateSchedule(date, time);
   const service = getAvailableServices().find((item) => item.id === serviceId);
   if (!service) throw new Error("Escolha um serviço disponível.");
@@ -120,6 +117,11 @@ export function createCustomerAppointment({ serviceId, date, time }) {
   const appointment = {
     id: createId(),
     customerId,
+    customerName: profile.name,
+    customerPhone: profile.phone,
+    car: profile.car,
+    brand: profile.brand,
+    plate: profile.plate,
     serviceId: service.id,
     serviceName: service.name,
     servicePrice: service.price,
