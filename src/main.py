@@ -14,6 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from src.agenda_fila.rotas import router as rotas_area_cliente
+from src.agenda_fila.rotas_gestao import router as rotas_gestao
 from src.compartilhado.config import settings
 from src.compartilhado.database import get_db
 from src.compartilhado.erros import registrar_tratadores_de_erro
@@ -37,6 +38,7 @@ app.add_middleware(
 registrar_tratadores_de_erro(app)
 
 app.include_router(rotas_area_cliente)
+app.include_router(rotas_gestao)
 
 
 @app.get("/health", tags=["health"])

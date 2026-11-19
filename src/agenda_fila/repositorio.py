@@ -134,3 +134,61 @@ def atualizar_status(
             "UPDATE agendamentos SET status = ?, atualizado_em = ? WHERE id = ?",
             (status, agora, agendamento_id),
         )
+
+
+# --- Gestão (/gestao/*) -----------------------------------------------------
+
+
+def listar_clientes(conexao: sqlite3.Connection) -> list[sqlite3.Row]:
+    return conexao.execute(
+        "SELECT id, nome, telefone, carro, marca, placa FROM clientes ORDER BY nome, id"
+    ).fetchall()
+
+
+def buscar_cliente(conexao: sqlite3.Connection, cliente_id: int) -> sqlite3.Row | None:
+    return conexao.execute(
+        "SELECT id, nome, telefone, carro, marca, placa FROM clientes WHERE id = ?",
+        (cliente_id,),
+    ).fetchone()
+
+
+def listar_agendamentos(
+    conexao: sqlite3.Connection, data: str | None = None, status: str | None = None
+) -> list[sqlite3.Row]:
+    """Todos os agendamentos, com filtros opcionais. Só os valores vão como parâmetro (?)."""
+    condicoes: list[str] = []
+    parametros: list[str] = []
+    if data is not None:
+        condicoes.append("a.data = ?")
+        parametros.append(data)
+    if status is not None:
+        condicoes.append("a.status = ?")
+        parametros.append(status)
+    where = f" WHERE {' AND '.join(condicoes)}" if condicoes else ""
+    return conexao.execute(
+        _SELECT_AGENDAMENTO + where + " ORDER BY a.data, a.horario, a.id",
+        parametros,
+    ).fetchall()
+
+
+def buscar_agendamento(conexao: sqlite3.Connection, agendamento_id: int) -> sqlite3.Row | None:
+    return conexao.execute(
+        _SELECT_AGENDAMENTO + " WHERE a.id = ?",
+        (agendamento_id,),
+    ).fetchone()
+
+
+def atualizar_status_se(
+    conexao: sqlite3.Connection,
+    agendamento_id: int,
+    status_atual: str,
+    novo_status: str,
+    agora: str,
+) -> bool:
+    """Muda o status só se ele ainda for status_atual. False: mudou no meio (corrida)."""
+    with conexao:
+        cursor = conexao.execute(
+            "UPDATE agendamentos SET status = ?, atualizado_em = ? WHERE id = ? AND status = ?",
+            (novo_status, agora, agendamento_id, status_atual),
+        )
+    return cursor.rowcount == 1
