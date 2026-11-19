@@ -1,6 +1,7 @@
-"""Esquemas Pydantic de entrada e saída da área do cliente."""
+"""Esquemas Pydantic de entrada e saída da área do cliente e da gestão."""
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -111,3 +112,33 @@ class AgendamentoSaida(BaseModel):
     criado_em: str | None
     atualizado_em: str | None
     cliente: ClienteResumo
+
+
+# --- Gestão (/gestao/*) -----------------------------------------------------
+
+StatusAgendamento = Literal["agendado", "confirmado", "pronto-retirada", "concluido", "cancelado"]
+
+
+class AgendamentoGestaoEntrada(AgendamentoEntrada):
+    """Agendamento criado pela gestão para um cliente já cadastrado."""
+
+    cliente_id: int
+
+
+class FiltroAgendamentosGestao(BaseModel):
+    """Filtros opcionais da lista da gestão (?data=AAAA-MM-DD&status=...)."""
+
+    data: str | None = Field(default=None, examples=["2026-12-01"])
+    status: StatusAgendamento | None = None
+
+    @field_validator("data")
+    @classmethod
+    def _validar_data(cls, valor: str | None) -> str | None:
+        if valor is None:
+            return None
+        try:
+            if datetime.strptime(valor, "%Y-%m-%d").strftime("%Y-%m-%d") != valor:
+                raise ValueError
+        except ValueError:
+            raise ValueError("Data deve estar no formato AAAA-MM-DD") from None
+        return valor

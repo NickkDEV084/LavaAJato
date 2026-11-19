@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Annotated
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import field_validator
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 # Raiz do projeto (pasta que contém o pyproject.toml e o .env).
@@ -28,6 +28,11 @@ class Settings(BaseSettings):
 
     # Chave para assinar tokens (autenticação, futuramente).
     SECRET_KEY: str
+
+    # Chave da área de gestão (/gestao/*), enviada pelo front no header X-Chave-Gestao.
+    # Sem ela configurada, a API recusa todas as rotas de gestão (503).
+    # SecretStr esconde o valor em repr/logs (aparece como '**********').
+    GESTAO_CHAVE: SecretStr | None = None
 
     # Banco SQLite da área do cliente (agenda_fila). Caminho relativo é resolvido
     # a partir da raiz do projeto. Ex.: SQLITE_PATH=lavaajato.db
