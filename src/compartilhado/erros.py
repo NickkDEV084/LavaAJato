@@ -10,12 +10,12 @@ Nos módulos, para erros de regra de negócio, levante ErroApp (ou HTTPException
 """
 
 import logging
+import sqlite3
 from typing import Any
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,8 @@ async def _erro_validacao(request: Request, exc: RequestValidationError) -> JSON
     )
 
 
-async def _erro_banco(request: Request, exc: SQLAlchemyError) -> JSONResponse:
+async def _erro_banco(request: Request, exc: sqlite3.Error) -> JSONResponse:
+    # O detalhe do erro vai só para o log do servidor; a resposta é sempre genérica.
     logger.exception("Erro de banco de dados em %s %s", request.method, request.url.path)
     return resposta_erro(status.HTTP_500_INTERNAL_SERVER_ERROR, "Erro ao acessar o banco de dados")
 
@@ -78,5 +79,5 @@ def registrar_tratadores_de_erro(app: FastAPI) -> None:
     app.add_exception_handler(ErroApp, _erro_app)
     app.add_exception_handler(StarletteHTTPException, _erro_http)
     app.add_exception_handler(RequestValidationError, _erro_validacao)
-    app.add_exception_handler(SQLAlchemyError, _erro_banco)
+    app.add_exception_handler(sqlite3.Error, _erro_banco)
     app.add_exception_handler(Exception, _erro_inesperado)
