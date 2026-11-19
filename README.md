@@ -18,6 +18,24 @@ O sistema está publicado em **https://lavaajato.onrender.com**.
 - **A primeira visita pode levar cerca de 1 minuto.** O serviço está no plano free do Render, que "adormece" depois de um tempo sem acessos.
 - **Os dados de teste são reiniciados periodicamente.** O disco do plano free é efêmero: perfis e agendamentos criados na demonstração se perdem quando o serviço reinicia.
 
+## Telas
+
+### Área do cliente
+
+![Área do cliente com o perfil preenchido e agendamentos em diferentes status](docs/imagens/area-cliente.png)
+
+### Agenda da gestão
+
+![Agenda da gestão com a lista de agendamentos, status e botões de ação](docs/imagens/agenda-gestao.png)
+
+### Documentação da API
+
+![Documentação interativa da API (Swagger) com as rotas da área do cliente e da gestão](docs/imagens/documentacao-api.png)
+
+### Área do cliente no celular
+
+<img src="docs/imagens/area-cliente-celular.png" alt="Lista de agendamentos da área do cliente em tela de celular" width="320">
+
 ## Funcionalidades
 
 ### Área do cliente (`cliente.html`)
