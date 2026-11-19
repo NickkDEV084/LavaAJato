@@ -146,6 +146,38 @@ uv run ruff check .
 uv run ruff format .
 ```
 
+## Deploy (Render)
+
+### Arquitetura
+
+Um único **web service** Python no Render (plano free) roda o FastAPI, que serve **a API e o front no mesmo domínio**:
+
+- `/cliente/*`, `/gestao/*`, `/health`, `/health/db`, `/docs`, `/openapi.json`: API
+- qualquer outro caminho: arquivos de `frontend/` (`/` abre o `index.html`, que redireciona para `cliente.html`)
+
+Fora da porta 5500 (dev), o `frontend/js/core/config.js` chama a API pela mesma origem da página, então não há CORS envolvido e `CORS_ORIGINS` não precisa ser configurada no Render.
+
+A configuração fica no `render.yaml` (Blueprint), na raiz:
+
+- build: `uv sync --locked --no-dev` (o Render instala o uv sozinho porque há um `uv.lock` na raiz)
+- start: `uv run --no-sync uvicorn src.main:app --host 0.0.0.0 --port $PORT`
+- health check: `/health/db`
+- Python `3.12.16` (variável `PYTHON_VERSION`), região `virginia`, deploy da branch `Principal!`
+
+### Criar o serviço pelo Blueprint
+
+1. No painel do Render: **New → Blueprint** e escolha este repositório (branch `Principal!`).
+2. O Render lê o `render.yaml` e pede os valores marcados com `sync: false`:
+   - **`GESTAO_CHAVE`**: chave da área de gestão. Gere uma com `uv run python -c "import secrets; print(secrets.token_urlsafe(32))"`. Sem ela, as rotas `/gestao/*` respondem `503`.
+3. Confirme. `SECRET_KEY` é gerada automaticamente pelo Render; `SQLITE_PATH`, `TIMEZONE` e `PYTHON_VERSION` já vêm do arquivo.
+
+O Render só pede os valores `sync: false` na **criação** do Blueprint. Para trocar a `GESTAO_CHAVE` depois, use **Environment** no painel do serviço. A cada push na `Principal!` o Render faz um novo deploy.
+
+### Avisos do plano free
+
+- **O banco volta ao original a cada reinício ou deploy.** O disco do plano free é efêmero: tudo que for gravado no `lavaajato.db` em produção (perfis, agendamentos) se perde quando o serviço reinicia, dorme ou recebe deploy, e ele volta ao `lavaajato.db` versionado no repositório. Para uma demonstração isso é aceitável.
+- **A primeira visita pode demorar cerca de 1 minuto.** Depois de 15 minutos sem acessos o Render "adormece" o serviço; a próxima requisição o acorda.
+
 ## Como o Git funciona aqui
 
 Usamos Git Flow com três níveis:
