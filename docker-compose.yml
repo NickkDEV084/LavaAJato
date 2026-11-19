@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:16
+    container_name: lavaajato-db
+    # ATENÇÃO: credenciais só para desenvolvimento local. Nunca use em produção.
+    # O Postgres cria o usuário e o database "lavaajato" na primeira subida.
+    environment:
+      POSTGRES_USER: lavaajato
+      POSTGRES_PASSWORD: lavaajato
+      POSTGRES_DB: lavaajato
+    ports:
+      # Host 5434 -> container 5432. Usamos 5434 porque 5432 e 5433 costumam estar
+      # ocupadas (Postgres instalado no Windows / outros projetos). Se mudar aqui,
+      # ajuste a porta da DATABASE_URL no .env e no .env.example.
+      - "5434:5432"
+    volumes:
+      # Volume nomeado: os dados sobrevivem a "docker compose down" (só somem com -v).
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # pg_isready responde quando o banco já aceita conexões.
+      test: ["CMD-SHELL", "pg_isready -U lavaajato -d lavaajato"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  pgdata:
