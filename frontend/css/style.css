@@ -148,7 +148,8 @@ th { background: #eef3f7; }
 .status-confirmado { background: #eaf5ff; color: #23658d; }
 .status-concluído { background: #e7f8ef; color: #24734b; }
 .status-cancelado { background: #fff0ef; color: #a64a43; }
-.request-actions { display: flex; min-width: 145px; gap: 6px; }
+.request-actions { display: flex; flex-wrap: wrap; min-width: 145px; gap: 6px; }
+.request-actions .btn { white-space: nowrap; overflow-wrap: normal; }
 .btn-small { padding: 7px 9px; border: 0; border-radius: 5px; background: #168657; color: #fff; font-size: .74rem; cursor: pointer; }
 .btn-small:hover { background: #116a44; }
 .btn-small-muted { border: 1px solid #d7e0e6; background: #fff; color: #586c7c; }
