@@ -3,6 +3,7 @@
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -27,6 +28,32 @@ class Settings(BaseSettings):
 
     # Chave para assinar tokens (autenticação, futuramente).
     SECRET_KEY: str
+
+    # Banco SQLite da área do cliente (agenda_fila). Caminho relativo é resolvido
+    # a partir da raiz do projeto. Ex.: SQLITE_PATH=lavaajato.db
+    SQLITE_PATH: Path = Path("lavaajato.db")
+
+    @field_validator("SQLITE_PATH", mode="after")
+    @classmethod
+    def _resolver_caminho_sqlite(cls, valor: Path) -> Path:
+        return valor if valor.is_absolute() else RAIZ_PROJETO / valor
+
+    # Fuso usado nas regras de horário (ex.: "data e hora futuras"), independente
+    # do relógio/fuso do servidor. Nome IANA, ex.: America/Recife.
+    TIMEZONE: str = "America/Recife"
+
+    @field_validator("TIMEZONE", mode="after")
+    @classmethod
+    def _validar_fuso(cls, valor: str) -> str:
+        try:
+            ZoneInfo(valor)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise ValueError(f"Fuso horário inválido: {valor!r}") from None
+        return valor
+
+    @property
+    def fuso(self) -> ZoneInfo:
+        return ZoneInfo(self.TIMEZONE)
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

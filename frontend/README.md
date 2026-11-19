@@ -4,13 +4,13 @@ Frontend em HTML, CSS e JavaScript nativo, sem dependências de build. Para abri
 
 ## Páginas
 
-- `index.html`: página pública do cliente, catálogo, agendamento e consulta de pedidos.
+- `index.html`: encaminha para a área do cliente.
 - `cliente.html`: área autenticada do cliente, perfil e CRUD de agendamentos.
 - `auth.html`: acesso de demonstração.
 - `gestao.html`: painel do gestor.
 - `clientes.html`, `servicos.html`, `agenda.html`, `pedidos.html`, `produtos.html`, `status.html`, `cancelamentos.html`, `avaliacoes.html` e `relatorios.html`: seções da gestão.
 
-As telas administrativas e seus estilos vieram do pacote `LavaAjato-frontend.zip`. `gestao.html` usa esse nome para coexistir com a página pública que já ocupava `index.html`.
+As telas administrativas e seus estilos vieram do pacote `LavaAjato-frontend.zip`. O painel administrativo usa `gestao.html`; a raiz do frontend encaminha para a área do cliente em `cliente.html`.
 
 ## Organização
 
@@ -23,7 +23,7 @@ As telas administrativas e seus estilos vieram do pacote `LavaAjato-frontend.zip
 
 Em telas pequenas, a barra inferior mantém Painel, Agenda, Pedidos e Relatórios a um toque. O botão Menu abre as demais seções; o menu e os links laterais do desktop usam os mesmos destinos.
 
-Os acessos à conta a partir do site público reaproveitam `auth.html` e direcionam para `cliente.html` após login/cadastro. A tela de autenticação sem esse destino continua encaminhando para a Gestão.
+O acesso à raiz do site abre a área do cliente. O link `Login Gestão` encaminha para o painel administrativo. Ambos reaproveitam `auth.html`; a autenticação sem destino encaminha para a Gestão e o cadastro da área do cliente retorna para `cliente.html`.
 
 O serviço `js/features/customer/customer-service.js` guarda o perfil junto ao cadastro existente e os agendamentos em `localStorage`. Cada agendamento recebe `customerId`; a listagem e as ações filtram por esse ID. Remarcação altera data e horário, e cancelamento preserva o registro com status `cancelado`.
 
