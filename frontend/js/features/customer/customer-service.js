@@ -1,9 +1,8 @@
 import { API_BASE_URL } from "../../core/config.js";
 import { readJson, writeJson } from "../../core/storage.js";
 import { getSession } from "../auth/auth-repository.js";
-import { getActiveServices } from "../services/service-repository.js";
 
-// Área do cliente: perfil, serviços e agendamentos vêm da API (/cliente/*).
+// Área do cliente (/cliente/*) e agenda da gestão (/gestao/*): os dados vêm da API.
 // A conversão entre os nomes da API (português) e os do front fica nas funções "from/to Api" abaixo.
 const SESSION_KEY = "lavaajato:demo:session:v1";
 const OFFLINE_MESSAGE = "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente em instantes.";
@@ -23,8 +22,8 @@ function currentCustomerId() {
   return session.user.id;
 }
 
-async function apiRequest(path, { method = "GET", body } = {}) {
-  const headers = { Accept: "application/json", "X-Usuario-Id": String(currentCustomerId()) };
+async function sendRequest(path, { method = "GET", body, headers: extraHeaders = {} } = {}) {
+  const headers = { Accept: "application/json", ...extraHeaders };
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
   let response;
@@ -44,6 +43,10 @@ async function apiRequest(path, { method = "GET", body } = {}) {
     throw new ApiError(message, response.status, payload?.erro?.detalhes ?? null);
   }
   return payload;
+}
+
+function apiRequest(path, options = {}) {
+  return sendRequest(path, { ...options, headers: { "X-Usuario-Id": String(currentCustomerId()) } });
 }
 
 function toNumericId(value) {
@@ -202,104 +205,109 @@ export async function completeCustomerAppointmentPayment(appointmentId) {
   }));
 }
 
-// --- Gestão (agenda.html) -----------------------------------------------------
-// A API ainda não tem rotas de gestão; estas funções continuam no armazenamento local
-// de demonstração para não quebrar schedule-page.js. Migrar quando houver /gestao/*.
-const USERS_KEY = "lavaajato:demo:users:v1";
-const APPOINTMENTS_KEY = "lavaajato:demo:customer-appointments:v1";
+// --- Gestão (agenda.html, API /gestao/*) -------------------------------------
+// A chave da gestão fica só no sessionStorage desta aba e vai no header X-Chave-Gestao.
+// Nunca é gravada no localStorage nem registrada no console.
+const MANAGEMENT_KEY_STORAGE = "lavaajato:gestao:chave";
+const MISSING_KEY_MESSAGE = "A agenda da gestão precisa da chave de acesso. Informe a chave para continuar.";
+const MANAGEMENT_STATUS_ROUTES = {
+  confirmado: "confirmar",
+  "pronto-retirada": "pronto-retirada",
+  cancelado: "cancelar",
+};
 
-function readUsers() {
-  const users = readJson(localStorage, USERS_KEY, []);
-  if (!Array.isArray(users)) throw new Error("Não foi possível carregar os perfis salvos.");
-  return users;
-}
-
-function readAppointments() {
-  const appointments = readJson(localStorage, APPOINTMENTS_KEY, []);
-  if (!Array.isArray(appointments)) throw new Error("Não foi possível carregar os agendamentos salvos.");
-  return appointments;
-}
-
-function createId() {
-  return globalThis.crypto?.randomUUID?.() ?? `agendamento-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function validateSchedule(date, time) {
-  if (!date || !time) throw new Error("Escolha uma data e um horário.");
-  const selected = new Date(`${date}T${time}`);
-  if (Number.isNaN(selected.getTime())) throw new Error("A data ou o horário não são válidos.");
-  if (selected < new Date()) throw new Error("Escolha uma data e um horário futuros.");
-}
-
-function localActiveServices() {
-  return getActiveServices().map((service) => ({
-    id: service.id,
-    name: service.name,
-    price: Number(service.price) || 0,
-    duration: Number(service.duration) || 0,
-  }));
-}
-
-export function listAppointmentsForManagement() {
-  return readAppointments().sort(byDateTime);
-}
-
-export function listCustomersForManagement() {
-  return readUsers().map((user) => ({
-    id: user.id,
-    name: user.name || "Cliente",
-    phone: user.phone || "",
-    car: user.car || "",
-    brand: user.brand || "",
-    plate: user.plate || "",
-  }));
-}
-
-export function createAppointmentForManagement({ customerId, serviceId, date, time }) {
-  validateSchedule(date, time);
-  const customer = listCustomersForManagement().find((user) => user.id === customerId);
-  if (!customer) throw new Error("Selecione um cliente cadastrado.");
-  const service = localActiveServices().find((item) => item.id === serviceId);
-  if (!service) throw new Error("Selecione um serviço disponível.");
-
-  const now = new Date().toISOString();
-  const appointment = {
-    id: createId(),
-    customerId: customer.id,
-    customerName: customer.name,
-    customerPhone: customer.phone,
-    car: customer.car,
-    brand: customer.brand,
-    plate: customer.plate,
-    serviceId: service.id,
-    serviceName: service.name,
-    servicePrice: service.price,
-    serviceDuration: service.duration,
-    date,
-    time,
-    status: "agendado",
-    createdAt: now,
-    updatedAt: now,
-  };
-  writeJson(localStorage, APPOINTMENTS_KEY, [appointment, ...readAppointments()]);
-  return appointment;
-}
-
-export function updateAppointmentStatusForManagement(appointmentId, status) {
-  const appointments = readAppointments();
-  const appointment = appointments.find((item) => item.id === appointmentId);
-  if (!appointment) throw new Error("Este agendamento não está mais disponível.");
-
-  const allowedTransitions = {
-    agendado: ["confirmado", "cancelado"],
-    confirmado: ["pronto-retirada", "cancelado"],
-  };
-  if (!allowedTransitions[appointment.status]?.includes(status)) {
-    throw new Error("Esta mudança de status não está disponível.");
+function readManagementKey() {
+  try {
+    return sessionStorage.getItem(MANAGEMENT_KEY_STORAGE) || "";
+  } catch {
+    return "";
   }
+}
 
-  appointment.status = status;
-  appointment.updatedAt = new Date().toISOString();
-  writeJson(localStorage, APPOINTMENTS_KEY, appointments);
-  return appointment;
+function forgetManagementKey() {
+  try {
+    sessionStorage.removeItem(MANAGEMENT_KEY_STORAGE);
+  } catch {
+    // Sem sessionStorage disponível, não há chave guardada para apagar.
+  }
+}
+
+export function hasManagementKey() {
+  return Boolean(readManagementKey());
+}
+
+/** Devolve a chave guardada ou pede ao usuário; cancelar o prompt gera um ApiError de chave ausente. */
+function requireManagementKey() {
+  const saved = readManagementKey();
+  if (saved) return saved;
+
+  const typed = (window.prompt("Informe a chave da gestão para acessar a agenda:") || "").trim();
+  if (!typed) throw new ApiError(MISSING_KEY_MESSAGE, 401);
+  try {
+    sessionStorage.setItem(MANAGEMENT_KEY_STORAGE, typed);
+  } catch {
+    // Sem sessionStorage a chave vale só para esta chamada; será pedida de novo.
+  }
+  return typed;
+}
+
+async function managementRequest(path, options = {}) {
+  const key = requireManagementKey();
+  try {
+    return await sendRequest(path, { ...options, headers: { "X-Chave-Gestao": key } });
+  } catch (error) {
+    // Chave ausente ou errada: descarta para pedir de novo na próxima ação. 503 não mexe na chave.
+    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) forgetManagementKey();
+    throw error;
+  }
+}
+
+function customerFromApi(cliente) {
+  return {
+    id: cliente.id,
+    name: cliente.nome || "Cliente",
+    phone: cliente.telefone || "",
+    car: cliente.carro || "",
+    brand: cliente.marca || "",
+    plate: cliente.placa || "",
+  };
+}
+
+function positiveId(value, message) {
+  const id = Number(value);
+  if (!Number.isInteger(id) || id <= 0) throw new Error(message);
+  return id;
+}
+
+export async function listServicesForManagement() {
+  const servicos = await managementRequest("/gestao/servicos");
+  return servicos.map(serviceFromApi);
+}
+
+export async function listAppointmentsForManagement() {
+  const agendamentos = await managementRequest("/gestao/agendamentos");
+  return agendamentos.map(appointmentFromApi).sort(byDateTime);
+}
+
+export async function listCustomersForManagement() {
+  const clientes = await managementRequest("/gestao/clientes");
+  return clientes.map(customerFromApi);
+}
+
+export async function createAppointmentForManagement({ customerId, serviceId, date, time }) {
+  const clienteId = positiveId(customerId, "Selecione um cliente cadastrado.");
+  const servicoId = positiveId(serviceId, "Selecione um serviço disponível.");
+  if (!date || !time) throw new Error("Escolha uma data e um horário.");
+
+  return appointmentFromApi(await managementRequest("/gestao/agendamentos", {
+    method: "POST",
+    body: { cliente_id: clienteId, servico_id: servicoId, ...scheduleToApi({ date, time }) },
+  }));
+}
+
+export async function updateAppointmentStatusForManagement(appointmentId, status) {
+  const route = MANAGEMENT_STATUS_ROUTES[status];
+  if (!route) throw new Error("Esta mudança de status não está disponível.");
+  const id = positiveId(appointmentId, "Este agendamento não está mais disponível.");
+  return appointmentFromApi(await managementRequest(`/gestao/agendamentos/${id}/${route}`, { method: "POST" }));
 }

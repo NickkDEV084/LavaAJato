@@ -1,14 +1,12 @@
-import { getActiveServices } from "../services/service-repository.js";
 import {
   createAppointmentForManagement,
+  hasManagementKey,
   listAppointmentsForManagement,
   listCustomersForManagement,
+  listServicesForManagement,
   updateAppointmentStatusForManagement,
 } from "./customer-service.js";
 
-const APPOINTMENTS_KEY = "lavaajato:demo:customer-appointments:v1";
-const USERS_KEY = "lavaajato:demo:users:v1";
-const SERVICES_KEY = "lavaajato:demo:services:v1";
 const labels = {
   agendado: "Agendado",
   confirmado: "Confirmado",
@@ -16,6 +14,9 @@ const labels = {
   concluido: "Concluído",
   cancelado: "Cancelado",
 };
+// Só estes status entram na fila (coluna "Posição").
+const ACTIVE_STATUSES = new Set(["agendado", "confirmado"]);
+const CANCELLABLE_STATUSES = new Set(["agendado", "confirmado"]);
 
 function localDateValue() {
   const now = new Date();
@@ -29,6 +30,10 @@ function addCell(row, value) {
   return cell;
 }
 
+function sameId(left, right) {
+  return String(left) === String(right);
+}
+
 export function initSchedulePage() {
   const form = document.querySelector("form.form-grid");
   const customerSelect = form.elements.cliente;
@@ -36,6 +41,7 @@ export function initSchedulePage() {
   const serviceSelect = form.elements.servico;
   const dateInput = form.elements.data;
   const timeInput = form.elements.hora;
+  const submitButton = form.querySelector('[type="submit"]');
   const table = document.querySelector(".tabela-wrap table");
   const body = table.querySelector("tbody") || table.createTBody();
   const heading = table.querySelector("thead tr");
@@ -45,6 +51,10 @@ export function initSchedulePage() {
   notice.hidden = true;
   form.after(notice);
   dateInput.min = localDateValue();
+
+  let customers = [];
+  let busy = false;
+  let loaded = false;
 
   if (![...heading.cells].some((cell) => cell.textContent.trim() === "Status")) {
     const statusHeading = document.createElement("th");
@@ -58,44 +68,50 @@ export function initSchedulePage() {
     notice.hidden = !message;
   }
 
-  function renderOptions() {
-    const customers = listCustomersForManagement();
-    const selectedCustomer = customerSelect.value;
-    customerSelect.replaceChildren(new Option("Selecione", ""));
-    customers.forEach((customer) => customerSelect.add(new Option(customer.name, customer.id)));
-    if (customers.some((customer) => customer.id === selectedCustomer)) customerSelect.value = selectedCustomer;
+  /** Desabilita o formulário e os botões da lista enquanto uma requisição está em andamento. */
+  function setBusy(value) {
+    busy = value;
+    submitButton.disabled = value;
+    form.toggleAttribute("aria-busy", value);
+    body.querySelectorAll("button").forEach((button) => { button.disabled = value; });
+  }
 
-    const services = getActiveServices();
-    const selectedService = serviceSelect.value;
-    serviceSelect.replaceChildren(new Option("Selecione", ""));
-    services.forEach((service) => serviceSelect.add(new Option(service.name, service.id)));
-    if (services.some((service) => service.id === selectedService)) serviceSelect.value = selectedService;
-    renderVehicles();
+  function fillSelect(select, items, label) {
+    const selected = select.value;
+    select.replaceChildren(new Option("Selecione", ""));
+    items.forEach((item) => select.add(new Option(label(item), String(item.id))));
+    if (items.some((item) => sameId(item.id, selected))) select.value = selected;
   }
 
   function renderVehicles() {
-    const customer = listCustomersForManagement().find((item) => item.id === customerSelect.value);
-    vehicleSelect.replaceChildren(new Option(customer?.car || "Selecione", customer?.car || ""));
+    // Mostra só o carro do cliente escolhido; o valor não é enviado à API.
+    const customer = customers.find((item) => sameId(item.id, customerSelect.value));
+    const option = new Option(customer?.car || "Selecione", customer?.car || "");
     if (customer?.brand && customer.car) {
-      vehicleSelect.options[0].textContent = `${customer.brand} ${customer.car}${customer.plate ? ` · ${customer.plate}` : ""}`;
+      option.textContent = `${customer.brand} ${customer.car}${customer.plate ? ` · ${customer.plate}` : ""}`;
     }
+    vehicleSelect.replaceChildren(option);
   }
 
-  function renderAppointments() {
-    const appointments = listAppointmentsForManagement();
+  function renderMessageRow(message) {
+    const row = document.createElement("tr");
+    const cell = addCell(row, message);
+    cell.colSpan = heading.cells.length;
+    body.replaceChildren(row);
+  }
+
+  function renderAppointments(appointments) {
     body.replaceChildren();
 
     if (!appointments.length) {
-      const row = document.createElement("tr");
-      const cell = addCell(row, "Nenhum agendamento encontrado.");
-      cell.colSpan = heading.cells.length;
-      body.append(row);
+      renderMessageRow("Nenhum agendamento encontrado.");
       return;
     }
 
-    appointments.forEach((appointment, index) => {
+    let position = 0;
+    appointments.forEach((appointment) => {
       const row = document.createElement("tr");
-      addCell(row, String(index + 1));
+      addCell(row, ACTIVE_STATUSES.has(appointment.status) ? String(++position) : "—");
       addCell(row, appointment.customerName || "Cliente");
       addCell(row, appointment.serviceName || "Serviço");
       addCell(row, `${appointment.date.split("-").reverse().join("/")} ${appointment.time}`);
@@ -110,21 +126,16 @@ export function initSchedulePage() {
           : null;
 
       if (nextStatus) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "btn btn-sec";
-        button.textContent = nextStatus[1];
-        button.addEventListener("click", () => {
-          try {
-            updateAppointmentStatusForManagement(appointment.id, nextStatus[0]);
-            showNotice(`Status atualizado: ${labels[nextStatus[0]]}.`, "success");
-            renderAppointments();
-          } catch (error) {
-            showNotice(error.message || "Não foi possível atualizar o agendamento.");
-          }
-        });
-        actions.append(button);
-      } else {
+        actions.append(actionButton(nextStatus[1], () => changeStatus(appointment, nextStatus[0])));
+      }
+      if (CANCELLABLE_STATUSES.has(appointment.status)) {
+        actions.append(actionButton("Cancelar", () => {
+          const when = `${appointment.date.split("-").reverse().join("/")} às ${appointment.time}`;
+          if (!window.confirm(`Cancelar o agendamento de ${appointment.customerName || "cliente"} em ${when}?`)) return;
+          changeStatus(appointment, "cancelado");
+        }));
+      }
+      if (!actions.childElementCount) {
         actions.textContent = appointment.status === "pronto-retirada" ? "Aguardando pagamento" : "—";
       }
       actionsCell.append(actions);
@@ -138,11 +149,71 @@ export function initSchedulePage() {
     });
   }
 
-  customerSelect.addEventListener("change", renderVehicles);
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
+  function actionButton(text, onClick) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "btn btn-sec";
+    button.textContent = text;
+    button.disabled = busy;
+    button.addEventListener("click", onClick);
+    return button;
+  }
+
+  async function refreshAppointments() {
+    renderAppointments(await listAppointmentsForManagement());
+  }
+
+  /** Recarrega clientes, serviços e agendamentos. As chamadas são sequenciais para pedir a chave uma vez só. */
+  async function loadAll() {
+    setBusy(true);
     try {
-      createAppointmentForManagement({
+      customers = await listCustomersForManagement();
+      const services = await listServicesForManagement();
+      fillSelect(customerSelect, customers, (customer) => customer.name);
+      fillSelect(serviceSelect, services, (service) => service.name);
+      renderVehicles();
+      await refreshAppointments();
+      loaded = true;
+      return true;
+    } catch (error) {
+      if (!loaded) renderMessageRow("Agenda indisponível no momento.");
+      showNotice(error.message || "Não foi possível carregar a agenda.");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function changeStatus(appointment, status) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await updateAppointmentStatusForManagement(appointment.id, status);
+      showNotice(`Status atualizado: ${labels[status]}.`, "success");
+      await refreshAppointments();
+    } catch (error) {
+      showNotice(error.message || "Não foi possível atualizar o agendamento.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  customerSelect.addEventListener("change", renderVehicles);
+  form.addEventListener("reset", () => {
+    // O reset nativo roda depois deste evento; o veículo é redesenhado em seguida.
+    setTimeout(renderVehicles);
+  });
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (busy) return;
+    // Se a agenda ainda não carregou (ex.: chave cancelada), a próxima ação é carregá-la.
+    if (!loaded) {
+      if (await loadAll()) showNotice("Agenda carregada. Preencha os campos e agende novamente.", "success");
+      return;
+    }
+    setBusy(true);
+    try {
+      await createAppointmentForManagement({
         customerId: customerSelect.value,
         serviceId: serviceSelect.value,
         date: dateInput.value,
@@ -151,22 +222,20 @@ export function initSchedulePage() {
       form.reset();
       dateInput.min = localDateValue();
       renderVehicles();
-      renderAppointments();
       showNotice("Agendamento criado para o cliente.", "success");
+      await refreshAppointments();
     } catch (error) {
       showNotice(error.message || "Não foi possível criar o agendamento.");
+    } finally {
+      setBusy(false);
     }
   });
 
-  window.addEventListener("storage", (event) => {
-    if (event.key === APPOINTMENTS_KEY) renderAppointments();
-    if (event.key === USERS_KEY || event.key === SERVICES_KEY) renderOptions();
+  // Ao voltar para a aba, busca de novo no banco (sem pedir a chave se ela foi descartada).
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible" || busy || !hasManagementKey()) return;
+    loadAll();
   });
 
-  try {
-    renderOptions();
-    renderAppointments();
-  } catch (error) {
-    showNotice(error.message || "Não foi possível carregar a agenda.");
-  }
+  loadAll();
 }
