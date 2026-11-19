@@ -162,6 +162,10 @@ def test_agendar_sem_perfil_retorna_422(api: TestClient) -> None:
         {"servico_id": 2, "data": "2099-02-30", "horario": "10:00"},  # data inválida
         {"servico_id": 2, "data": "2099-05-10", "horario": "9:30"},  # formato de hora
         {"servico_id": 2, "data": "2099-05-10", "horario": "25:00"},  # hora inválida
+        {"servico_id": 2, "data": "2099-W19-1", "horario": "10:00"},  # data de semana ISO
+        {"servico_id": 2, "data": "2099-5-010", "horario": "10:00"},  # sem zero à esquerda
+        {"servico_id": 2, "data": "2099-05-10", "horario": " 9:30"},  # espaço à esquerda
+        {"servico_id": 2, "data": "2099-05-10", "horario": "9:5 "},  # espaço à direita
         {"data": "2099-05-10", "horario": "10:00"},  # sem serviço
     ],
 )

@@ -1,6 +1,6 @@
 """Esquemas Pydantic de entrada e saída da área do cliente."""
 
-from datetime import date, datetime
+from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -62,10 +62,11 @@ class DataHorarioEntrada(BaseModel):
     @field_validator("data")
     @classmethod
     def _validar_data(cls, valor: str) -> str:
+        # Ida e volta pelo strptime/strftime: só aceita o formato exato. Rejeita data de
+        # semana ISO ("2027-W48-1"), espaços e campos sem zero à esquerda.
         try:
-            if len(valor) != 10:
+            if datetime.strptime(valor, "%Y-%m-%d").strftime("%Y-%m-%d") != valor:
                 raise ValueError
-            date.fromisoformat(valor)
         except ValueError:
             raise ValueError("Data deve estar no formato AAAA-MM-DD") from None
         return valor
@@ -74,9 +75,8 @@ class DataHorarioEntrada(BaseModel):
     @classmethod
     def _validar_horario(cls, valor: str) -> str:
         try:
-            if len(valor) != 5:
+            if datetime.strptime(valor, "%H:%M").strftime("%H:%M") != valor:
                 raise ValueError
-            datetime.strptime(valor, "%H:%M")
         except ValueError:
             raise ValueError("Horário deve estar no formato HH:MM") from None
         return valor
