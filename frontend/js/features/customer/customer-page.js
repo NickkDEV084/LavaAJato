@@ -40,6 +40,19 @@ function createTextElement(tagName, className, text) {
   return element;
 }
 
+/** Desabilita o botão enquanto a requisição roda, evitando duplo clique. */
+async function withBusyButton(button, task) {
+  if (!button || button.disabled) return undefined;
+  button.disabled = true;
+  button.setAttribute("aria-busy", "true");
+  try {
+    return await task();
+  } finally {
+    button.disabled = false;
+    button.removeAttribute("aria-busy");
+  }
+}
+
 export function initCustomerPage() {
   const notice = document.querySelector("#customer-notice");
   const profileForm = document.querySelector("#profile-form");
@@ -88,20 +101,20 @@ export function initCustomerPage() {
   }
 
   deferPaymentButton.addEventListener("click", () => paymentDialog.close());
-  confirmPaymentButton.addEventListener("click", () => {
+  confirmPaymentButton.addEventListener("click", () => withBusyButton(confirmPaymentButton, async () => {
     if (!paymentAppointmentId) return;
     try {
-      completeCustomerAppointmentPayment(paymentAppointmentId);
+      await completeCustomerAppointmentPayment(paymentAppointmentId);
       paymentDialog.close();
       showNotice("Pagamento simulado confirmado. Agendamento concluído.", "success");
-      renderAppointments();
+      await renderAppointments();
     } catch (error) {
       showNotice(error.message || "Não foi possível concluir o pagamento simulado.");
     }
-  });
+  }));
 
-  function loadProfile() {
-    const profile = getCustomerProfile();
+  async function loadProfile() {
+    const profile = await getCustomerProfile();
     profileForm.elements.name.value = profile.name;
     profileForm.elements.phone.value = profile.phone;
     profileForm.elements.car.value = profile.car;
@@ -110,13 +123,13 @@ export function initCustomerPage() {
     document.querySelector("#customer-welcome-name").textContent = profile.name.split(" ")[0] || "cliente";
   }
 
-  function renderServices() {
-    currentServices = getAvailableServices();
+  async function renderServices() {
+    currentServices = await getAvailableServices();
     serviceSelect.replaceChildren(new Option("Selecione um serviço", ""));
     servicesList.replaceChildren();
 
     currentServices.forEach((service) => {
-      const option = new Option(`${service.name} — ${currency.format(service.price)}`, service.id);
+      const option = new Option(`${service.name} — ${currency.format(service.price)}`, String(service.id));
       serviceSelect.append(option);
 
       const card = document.createElement("article");
@@ -136,8 +149,8 @@ export function initCustomerPage() {
     }
   }
 
-  function openDetails(appointmentId) {
-    const appointment = getCustomerAppointment(appointmentId);
+  async function openDetails(appointmentId) {
+    const appointment = await getCustomerAppointment(appointmentId);
     document.querySelector("#details-service").textContent = appointment.serviceName;
     document.querySelector("#details-date").textContent = formatDate(appointment.date);
     document.querySelector("#details-time").textContent = appointment.time;
@@ -150,17 +163,17 @@ export function initCustomerPage() {
     detailsDialog.showModal();
   }
 
-  function openReschedule(appointmentId) {
-    const appointment = getCustomerAppointment(appointmentId);
-    rescheduleForm.elements.appointmentId.value = appointment.id;
+  async function openReschedule(appointmentId) {
+    const appointment = await getCustomerAppointment(appointmentId);
+    rescheduleForm.elements.appointmentId.value = String(appointment.id);
     rescheduleForm.elements.date.value = appointment.date;
     rescheduleForm.elements.time.value = appointment.time;
     rescheduleForm.elements.date.min = localDateValue();
     rescheduleDialog.showModal();
   }
 
-  function renderAppointments() {
-    const appointments = listCustomerAppointments();
+  async function renderAppointments() {
+    const appointments = await listCustomerAppointments();
     appointmentsList.replaceChildren();
     appointmentsEmpty.hidden = appointments.length > 0;
 
@@ -188,30 +201,32 @@ export function initCustomerPage() {
       actions.className = "appointment-actions";
       const detailsButton = createTextElement("button", "customer-button customer-button-secondary", "Ver detalhes");
       detailsButton.type = "button";
-      detailsButton.addEventListener("click", () => {
-        try { openDetails(appointment.id); } catch (error) { showNotice(error.message); }
-      });
+      detailsButton.addEventListener("click", () => withBusyButton(detailsButton, async () => {
+        try { await openDetails(appointment.id); } catch (error) { showNotice(error.message); }
+      }));
       actions.append(detailsButton);
 
       if (appointment.status === "agendado") {
         const rescheduleButton = createTextElement("button", "customer-button customer-button-secondary", "Remarcar");
         rescheduleButton.type = "button";
-        rescheduleButton.addEventListener("click", () => {
-          try { openReschedule(appointment.id); } catch (error) { showNotice(error.message); }
-        });
+        rescheduleButton.addEventListener("click", () => withBusyButton(rescheduleButton, async () => {
+          try { await openReschedule(appointment.id); } catch (error) { showNotice(error.message); }
+        }));
         actions.append(rescheduleButton);
 
         const cancelButton = createTextElement("button", "customer-button customer-button-danger", "Cancelar");
         cancelButton.type = "button";
         cancelButton.addEventListener("click", () => {
           if (!window.confirm("Deseja cancelar este agendamento?")) return;
-          try {
-            cancelCustomerAppointment(appointment.id);
-            showNotice("Agendamento cancelado.", "success");
-            renderAppointments();
-          } catch (error) {
-            showNotice(error.message);
-          }
+          withBusyButton(cancelButton, async () => {
+            try {
+              await cancelCustomerAppointment(appointment.id);
+              showNotice("Agendamento cancelado.", "success");
+              await renderAppointments();
+            } catch (error) {
+              showNotice(error.message);
+            }
+          });
         });
         actions.append(cancelButton);
       }
@@ -237,56 +252,63 @@ export function initCustomerPage() {
   profileForm.addEventListener("submit", (event) => {
     event.preventDefault();
     const data = new FormData(profileForm);
-    try {
-      const profile = saveCustomerProfile({
-        name: data.get("name"),
-        phone: data.get("phone"),
-        car: data.get("car"),
-        brand: data.get("brand"),
-        plate: data.get("plate"),
-      });
-      document.querySelector("#customer-welcome-name").textContent = profile.name.split(" ")[0];
-      showNotice("Perfil atualizado.", "success");
-    } catch (error) {
-      showNotice(error.message || "Não foi possível salvar o perfil.");
-    }
+    withBusyButton(event.submitter || profileForm.querySelector("[type=submit]"), async () => {
+      try {
+        const profile = await saveCustomerProfile({
+          name: data.get("name"),
+          phone: data.get("phone"),
+          car: data.get("car"),
+          brand: data.get("brand"),
+          plate: data.get("plate"),
+        });
+        profileForm.elements.plate.value = profile.plate;
+        document.querySelector("#customer-welcome-name").textContent = profile.name.split(" ")[0];
+        showNotice("Perfil atualizado.", "success");
+      } catch (error) {
+        showNotice(error.message || "Não foi possível salvar o perfil.");
+      }
+    });
   });
 
   bookingForm.elements.date.min = localDateValue();
   bookingForm.addEventListener("submit", (event) => {
     event.preventDefault();
     const data = new FormData(bookingForm);
-    try {
-      createCustomerAppointment({
-        serviceId: data.get("serviceId"),
-        date: data.get("date"),
-        time: data.get("time"),
-      });
-      bookingForm.reset();
-      bookingForm.elements.date.min = localDateValue();
-      showNotice("Agendamento criado.", "success");
-      renderAppointments();
-      document.querySelector("#appointments").scrollIntoView({ behavior: "smooth", block: "start" });
-    } catch (error) {
-      showNotice(error.message || "Não foi possível criar o agendamento.");
-    }
+    withBusyButton(event.submitter || bookingForm.querySelector("[type=submit]"), async () => {
+      try {
+        await createCustomerAppointment({
+          serviceId: data.get("serviceId"),
+          date: data.get("date"),
+          time: data.get("time"),
+        });
+        bookingForm.reset();
+        bookingForm.elements.date.min = localDateValue();
+        showNotice("Agendamento criado.", "success");
+        await renderAppointments();
+        document.querySelector("#appointments").scrollIntoView({ behavior: "smooth", block: "start" });
+      } catch (error) {
+        showNotice(error.message || "Não foi possível criar o agendamento.");
+      }
+    });
   });
 
   rescheduleForm.elements.date.min = localDateValue();
   rescheduleForm.addEventListener("submit", (event) => {
     event.preventDefault();
     const data = new FormData(rescheduleForm);
-    try {
-      rescheduleCustomerAppointment(data.get("appointmentId"), {
-        date: data.get("date"),
-        time: data.get("time"),
-      });
-      rescheduleDialog.close();
-      showNotice("Data e horário atualizados.", "success");
-      renderAppointments();
-    } catch (error) {
-      showNotice(error.message || "Não foi possível remarcar o agendamento.");
-    }
+    withBusyButton(event.submitter || rescheduleForm.querySelector("[type=submit]"), async () => {
+      try {
+        await rescheduleCustomerAppointment(data.get("appointmentId"), {
+          date: data.get("date"),
+          time: data.get("time"),
+        });
+        rescheduleDialog.close();
+        showNotice("Data e horário atualizados.", "success");
+        await renderAppointments();
+      } catch (error) {
+        showNotice(error.message || "Não foi possível remarcar o agendamento.");
+      }
+    });
   });
 
   document.querySelectorAll("[data-close-dialog]").forEach((button) => {
@@ -298,17 +320,8 @@ export function initCustomerPage() {
     window.location.replace("auth.html?next=cliente.html");
   });
 
-  window.addEventListener("storage", (event) => {
-    if (event.key === "lavaajato:demo:services:v1") renderServices();
-    if (event.key === "lavaajato:demo:customer-appointments:v1") renderAppointments();
-    if (event.key === "lavaajato:demo:users:v1") loadProfile();
+  Promise.allSettled([loadProfile(), renderServices(), renderAppointments()]).then((results) => {
+    const failure = results.find((result) => result.status === "rejected");
+    if (failure) showNotice(failure.reason?.message || "Não foi possível carregar sua área do cliente.");
   });
-
-  try {
-    loadProfile();
-    renderServices();
-    renderAppointments();
-  } catch (error) {
-    showNotice(error.message || "Não foi possível carregar sua área do cliente.");
-  }
 }

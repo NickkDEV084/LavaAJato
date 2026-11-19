@@ -1,17 +1,212 @@
+import { API_BASE_URL } from "../../core/config.js";
 import { readJson, writeJson } from "../../core/storage.js";
 import { getSession } from "../auth/auth-repository.js";
 import { getActiveServices } from "../services/service-repository.js";
 
-// Perfil e agendamentos ficam isolados aqui para facilitar a troca por uma API.
-const USERS_KEY = "lavaajato:demo:users:v1";
+// Área do cliente: perfil, serviços e agendamentos vêm da API (/cliente/*).
+// A conversão entre os nomes da API (português) e os do front fica nas funções "from/to Api" abaixo.
 const SESSION_KEY = "lavaajato:demo:session:v1";
-const APPOINTMENTS_KEY = "lavaajato:demo:customer-appointments:v1";
+const OFFLINE_MESSAGE = "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente em instantes.";
+
+export class ApiError extends Error {
+  constructor(message, status, details = null) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.details = details;
+  }
+}
 
 function currentCustomerId() {
   const session = getSession();
   if (!session?.user?.id) throw new Error("Entre na sua conta para acessar esta área.");
   return session.user.id;
 }
+
+async function apiRequest(path, { method = "GET", body } = {}) {
+  const headers = { Accept: "application/json", "X-Usuario-Id": String(currentCustomerId()) };
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    throw new ApiError(OFFLINE_MESSAGE, 0);
+  }
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message = payload?.erro?.mensagem || "Não foi possível concluir a operação. Tente novamente.";
+    throw new ApiError(message, response.status, payload?.erro?.detalhes ?? null);
+  }
+  return payload;
+}
+
+function toNumericId(value) {
+  const id = Number(value);
+  if (!Number.isInteger(id) || id <= 0) throw new Error("Este agendamento não está disponível nesta conta.");
+  return id;
+}
+
+// --- Mapeamentos API <-> front ------------------------------------------------
+
+function serviceFromApi(servico) {
+  return {
+    id: servico.id,
+    name: servico.nome,
+    description: servico.descricao || "",
+    price: Number(servico.preco) || 0,
+    duration: Number(servico.duracao_min) || 0,
+  };
+}
+
+function profileFromApi(perfil) {
+  return {
+    id: perfil.id,
+    name: perfil.nome || "",
+    email: getSession()?.user?.email || "",
+    phone: perfil.telefone || "",
+    car: perfil.carro || "",
+    brand: perfil.marca || "",
+    plate: perfil.placa || "",
+    createdAt: perfil.criado_em,
+    updatedAt: perfil.atualizado_em,
+  };
+}
+
+function profileToApi({ name, phone, car, brand, plate }) {
+  return {
+    nome: name,
+    telefone: phone,
+    carro: car,
+    marca: brand,
+    placa: plate,
+  };
+}
+
+function appointmentFromApi(agendamento) {
+  const cliente = agendamento.cliente || {};
+  return {
+    id: agendamento.id,
+    customerId: cliente.id,
+    customerName: cliente.nome || "",
+    customerPhone: cliente.telefone || "",
+    car: cliente.carro || "",
+    brand: cliente.marca || "",
+    plate: cliente.placa || "",
+    serviceId: agendamento.servico_id,
+    serviceName: agendamento.servico_nome,
+    servicePrice: Number(agendamento.preco_snapshot) || 0,
+    serviceDuration: Number(agendamento.duracao_snapshot_min) || 0,
+    date: agendamento.data,
+    time: agendamento.horario,
+    status: agendamento.status,
+    createdAt: agendamento.criado_em,
+    updatedAt: agendamento.atualizado_em,
+  };
+}
+
+function scheduleToApi({ date, time }) {
+  return { data: date, horario: time };
+}
+
+function byDateTime(left, right) {
+  return `${left.date}T${left.time}`.localeCompare(`${right.date}T${right.time}`);
+}
+
+// --- Área do cliente (API) ----------------------------------------------------
+
+export async function getCustomerProfile() {
+  try {
+    return profileFromApi(await apiRequest("/cliente/perfil"));
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 404) throw error;
+    // Conta ainda sem perfil salvo no banco: parte dos dados da sessão de login.
+    const user = getSession()?.user || {};
+    return { id: null, name: user.name || "", email: user.email || "", phone: "", car: "", brand: "", plate: "" };
+  }
+}
+
+export async function saveCustomerProfile({ name, phone, car, brand, plate }) {
+  const customerId = currentCustomerId();
+  const cleanName = String(name || "").trim().replace(/\s+/g, " ");
+  if (cleanName.length < 2) throw new Error("Informe seu nome completo.");
+
+  const profile = profileFromApi(await apiRequest("/cliente/perfil", {
+    method: "PUT",
+    body: profileToApi({
+      name: cleanName,
+      phone: String(phone || "").trim(),
+      car: String(car || "").trim(),
+      brand: String(brand || "").trim(),
+      plate: String(plate || "").trim().toLocaleUpperCase("pt-BR"),
+    }),
+  }));
+
+  // O e-mail continua reservado à autenticação; só o nome é sincronizado na sessão.
+  const session = readJson(sessionStorage, SESSION_KEY, null);
+  if (session?.user?.id === customerId) {
+    session.user.name = profile.name;
+    writeJson(sessionStorage, SESSION_KEY, session);
+  }
+
+  return profile;
+}
+
+export async function getAvailableServices() {
+  const servicos = await apiRequest("/cliente/servicos");
+  return servicos.map(serviceFromApi);
+}
+
+export async function listCustomerAppointments() {
+  const agendamentos = await apiRequest("/cliente/agendamentos");
+  return agendamentos.map(appointmentFromApi).sort(byDateTime);
+}
+
+export async function getCustomerAppointment(appointmentId) {
+  return appointmentFromApi(await apiRequest(`/cliente/agendamentos/${toNumericId(appointmentId)}`));
+}
+
+export async function createCustomerAppointment({ serviceId, date, time }) {
+  const servicoId = Number(serviceId);
+  if (!Number.isInteger(servicoId) || servicoId <= 0) throw new Error("Escolha um serviço disponível.");
+  if (!date || !time) throw new Error("Escolha uma data e um horário.");
+
+  return appointmentFromApi(await apiRequest("/cliente/agendamentos", {
+    method: "POST",
+    body: { servico_id: servicoId, ...scheduleToApi({ date, time }) },
+  }));
+}
+
+export async function rescheduleCustomerAppointment(appointmentId, { date, time }) {
+  if (!date || !time) throw new Error("Escolha uma data e um horário.");
+  return appointmentFromApi(await apiRequest(`/cliente/agendamentos/${toNumericId(appointmentId)}`, {
+    method: "PATCH",
+    body: scheduleToApi({ date, time }),
+  }));
+}
+
+export async function cancelCustomerAppointment(appointmentId) {
+  return appointmentFromApi(await apiRequest(`/cliente/agendamentos/${toNumericId(appointmentId)}/cancelar`, {
+    method: "POST",
+  }));
+}
+
+export async function completeCustomerAppointmentPayment(appointmentId) {
+  return appointmentFromApi(await apiRequest(`/cliente/agendamentos/${toNumericId(appointmentId)}/pagar`, {
+    method: "POST",
+  }));
+}
+
+// --- Gestão (agenda.html) -----------------------------------------------------
+// A API ainda não tem rotas de gestão; estas funções continuam no armazenamento local
+// de demonstração para não quebrar schedule-page.js. Migrar quando houver /gestao/*.
+const USERS_KEY = "lavaajato:demo:users:v1";
+const APPOINTMENTS_KEY = "lavaajato:demo:customer-appointments:v1";
 
 function readUsers() {
   const users = readJson(localStorage, USERS_KEY, []);
@@ -36,71 +231,17 @@ function validateSchedule(date, time) {
   if (selected < new Date()) throw new Error("Escolha uma data e um horário futuros.");
 }
 
-export function getCustomerProfile() {
-  const customerId = currentCustomerId();
-  const user = readUsers().find((item) => item.id === customerId);
-  if (!user) throw new Error("Não foi possível localizar o perfil desta conta.");
-
-  return {
-    id: user.id,
-    name: user.name || "",
-    email: user.email || "",
-    phone: user.phone || "",
-    car: user.car || "",
-    brand: user.brand || "",
-    plate: user.plate || "",
-  };
-}
-
-export function saveCustomerProfile({ name, phone, car, brand, plate }) {
-  const customerId = currentCustomerId();
-  const users = readUsers();
-  const user = users.find((item) => item.id === customerId);
-  if (!user) throw new Error("Não foi possível localizar o perfil desta conta.");
-
-  const cleanName = String(name || "").trim().replace(/\s+/g, " ");
-  const cleanPhone = String(phone || "").trim();
-  if (cleanName.length < 2) throw new Error("Informe seu nome completo.");
-
-  Object.assign(user, {
-    name: cleanName,
-    phone: cleanPhone,
-    car: String(car || "").trim(),
-    brand: String(brand || "").trim(),
-    plate: String(plate || "").trim().toLocaleUpperCase("pt-BR"),
-    updatedAt: new Date().toISOString(),
-  });
-  writeJson(localStorage, USERS_KEY, users);
-
-  // O e-mail continua reservado à autenticação; só o nome é sincronizado aqui.
-  const session = readJson(sessionStorage, SESSION_KEY, null);
-  if (session?.user?.id === customerId) {
-    session.user.name = cleanName;
-    writeJson(sessionStorage, SESSION_KEY, session);
-  }
-
-  return getCustomerProfile();
-}
-
-export function getAvailableServices() {
+function localActiveServices() {
   return getActiveServices().map((service) => ({
     id: service.id,
     name: service.name,
-    description: service.description || "",
     price: Number(service.price) || 0,
     duration: Number(service.duration) || 0,
   }));
 }
 
-export function listCustomerAppointments() {
-  const customerId = currentCustomerId();
-  return readAppointments()
-    .filter((appointment) => appointment.customerId === customerId)
-    .sort((left, right) => `${left.date}T${left.time}`.localeCompare(`${right.date}T${right.time}`));
-}
-
 export function listAppointmentsForManagement() {
-  return readAppointments().sort((left, right) => `${left.date}T${left.time}`.localeCompare(`${right.date}T${right.time}`));
+  return readAppointments().sort(byDateTime);
 }
 
 export function listCustomersForManagement() {
@@ -118,7 +259,7 @@ export function createAppointmentForManagement({ customerId, serviceId, date, ti
   validateSchedule(date, time);
   const customer = listCustomersForManagement().find((user) => user.id === customerId);
   if (!customer) throw new Error("Selecione um cliente cadastrado.");
-  const service = getAvailableServices().find((item) => item.id === serviceId);
+  const service = localActiveServices().find((item) => item.id === serviceId);
   if (!service) throw new Error("Selecione um serviço disponível.");
 
   const now = new Date().toISOString();
@@ -159,86 +300,6 @@ export function updateAppointmentStatusForManagement(appointmentId, status) {
 
   appointment.status = status;
   appointment.updatedAt = new Date().toISOString();
-  writeJson(localStorage, APPOINTMENTS_KEY, appointments);
-  return appointment;
-}
-
-export function completeCustomerAppointmentPayment(appointmentId) {
-  const customerId = currentCustomerId();
-  const appointments = readAppointments();
-  const appointment = appointments.find((item) => item.id === appointmentId && item.customerId === customerId);
-  if (!appointment) throw new Error("Este agendamento não está disponível nesta conta.");
-  if (appointment.status !== "pronto-retirada") throw new Error("Este agendamento ainda não está pronto para pagamento.");
-
-  appointment.status = "concluido";
-  appointment.paidAt = new Date().toISOString();
-  appointment.updatedAt = appointment.paidAt;
-  writeJson(localStorage, APPOINTMENTS_KEY, appointments);
-  return appointment;
-}
-
-export function getCustomerAppointment(appointmentId) {
-  const customerId = currentCustomerId();
-  const appointment = readAppointments().find((item) => item.id === appointmentId && item.customerId === customerId);
-  if (!appointment) throw new Error("Este agendamento não está disponível nesta conta.");
-  return appointment;
-}
-
-export function createCustomerAppointment({ serviceId, date, time }) {
-  const customerId = currentCustomerId();
-  const profile = getCustomerProfile();
-  validateSchedule(date, time);
-  const service = getAvailableServices().find((item) => item.id === serviceId);
-  if (!service) throw new Error("Escolha um serviço disponível.");
-
-  const appointments = readAppointments();
-  const appointment = {
-    id: createId(),
-    customerId,
-    customerName: profile.name,
-    customerPhone: profile.phone,
-    car: profile.car,
-    brand: profile.brand,
-    plate: profile.plate,
-    serviceId: service.id,
-    serviceName: service.name,
-    servicePrice: service.price,
-    serviceDuration: service.duration,
-    date,
-    time,
-    status: "agendado",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-  writeJson(localStorage, APPOINTMENTS_KEY, [appointment, ...appointments]);
-  return appointment;
-}
-
-export function rescheduleCustomerAppointment(appointmentId, { date, time }) {
-  const customerId = currentCustomerId();
-  validateSchedule(date, time);
-  const appointments = readAppointments();
-  const appointment = appointments.find((item) => item.id === appointmentId && item.customerId === customerId);
-  if (!appointment) throw new Error("Este agendamento não está disponível nesta conta.");
-  if (appointment.status !== "agendado") throw new Error("Somente agendamentos ativos podem ser remarcados.");
-
-  appointment.date = date;
-  appointment.time = time;
-  appointment.updatedAt = new Date().toISOString();
-  writeJson(localStorage, APPOINTMENTS_KEY, appointments);
-  return appointment;
-}
-
-export function cancelCustomerAppointment(appointmentId) {
-  const customerId = currentCustomerId();
-  const appointments = readAppointments();
-  const appointment = appointments.find((item) => item.id === appointmentId && item.customerId === customerId);
-  if (!appointment) throw new Error("Este agendamento não está disponível nesta conta.");
-  if (appointment.status !== "agendado") throw new Error("Este agendamento não pode mais ser cancelado.");
-
-  appointment.status = "cancelado";
-  appointment.cancelledAt = new Date().toISOString();
-  appointment.updatedAt = appointment.cancelledAt;
   writeJson(localStorage, APPOINTMENTS_KEY, appointments);
   return appointment;
 }
