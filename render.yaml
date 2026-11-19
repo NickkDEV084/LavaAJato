@@ -1,0 +1,28 @@
+# Blueprint do Render: um único web service com a API (FastAPI) e o front estático.
+# Spec: https://render.com/docs/blueprint-spec
+# Nenhum segredo fica aqui: SECRET_KEY é gerada pelo Render e GESTAO_CHAVE é
+# preenchida no painel na criação do Blueprint.
+services:
+  - type: web
+    name: lavaajato
+    runtime: python
+    plan: free
+    region: virginia
+    branch: "Principal!"
+    autoDeployTrigger: commit
+    buildCommand: uv sync --locked --no-dev
+    startCommand: uv run --no-sync uvicorn src.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health/db
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.16"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GESTAO_CHAVE
+        sync: false
+      - key: SQLITE_PATH
+        value: lavaajato.db
+      - key: TIMEZONE
+        value: America/Recife
+      # CORS_ORIGINS fica de fora de propósito: front e API estão na mesma origem,
+      # então o navegador não faz checagem de CORS e a lista vazia (padrão) basta.
