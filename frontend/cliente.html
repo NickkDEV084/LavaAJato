@@ -9,15 +9,15 @@
   <link rel="stylesheet" href="css/customer-area.css">
 </head>
 <body class="client-page customer-area-page" data-page="customer-area">
-  <header class="client-header">
-    <a class="client-brand" href="index.html" aria-label="LavaAjato, página inicial">
+  <header class="client-header" id="top">
+    <a class="client-brand" href="#top" aria-label="LavaAjato, início da área do cliente">
       <span class="brand-icon" aria-hidden="true">L</span>
       <span>Lava<span>Ajato</span></span>
     </a>
     <nav class="client-nav" aria-label="Navegação da área do cliente">
-      <a href="index.html">Site</a>
       <a href="#appointments">Agendamentos</a>
       <a href="#profile">Perfil</a>
+      <a class="customer-manager-link" href="auth.html">Login Gestão</a>
       <button id="customer-sign-out" class="customer-sign-out" type="button">Sair</button>
     </nav>
   </header>
@@ -43,17 +43,20 @@
         <p>Esses dados pertencem à sua conta e podem ser atualizados quando precisar.</p>
       </div>
       <form id="profile-form" class="customer-form">
-        <label>Nome completo
+        <label>Nome
           <input name="name" autocomplete="name" required minlength="2">
-        </label>
-        <label>E-mail
-          <input name="email" type="email" autocomplete="email" required>
         </label>
         <label>Telefone
           <input name="phone" type="tel" autocomplete="tel" inputmode="tel">
         </label>
-        <label>Endereço <span class="customer-optional">opcional</span>
-          <input name="address" autocomplete="street-address">
+        <label>Carro
+          <input name="car" autocomplete="off" placeholder="Ex.: Civic">
+        </label>
+        <label>Marca
+          <input name="brand" autocomplete="off" placeholder="Ex.: Honda">
+        </label>
+        <label>Placa
+          <input name="plate" autocomplete="off" placeholder="ABC1D23" maxlength="8">
         </label>
         <div class="customer-form-actions">
           <button class="customer-button customer-button-primary" type="submit">Salvar perfil</button>
@@ -116,9 +119,9 @@
   </main>
 
   <footer class="client-footer">
-    <a class="client-brand" href="index.html"><span class="brand-icon" aria-hidden="true">L</span><span>Lava<span>Ajato</span></span></a>
+    <a class="client-brand" href="#top"><span class="brand-icon" aria-hidden="true">L</span><span>Lava<span>Ajato</span></span></a>
     <p>Seu próximo brilho começa por aqui.</p>
-    <a href="index.html">Página inicial</a>
+    <a href="auth.html">Login Gestão ↗</a>
   </footer>
 
   <dialog id="appointment-details-dialog" class="customer-dialog" aria-labelledby="details-title">
@@ -133,6 +136,9 @@
       <div><dt>Status</dt><dd id="details-status"></dd></div>
       <div><dt>Valor</dt><dd id="details-price"></dd></div>
       <div><dt>Duração estimada</dt><dd id="details-duration"></dd></div>
+      <div><dt>Carro</dt><dd id="details-car"></dd></div>
+      <div><dt>Marca</dt><dd id="details-brand"></dd></div>
+      <div><dt>Placa</dt><dd id="details-plate"></dd></div>
     </dl>
     <button class="customer-button customer-button-secondary" type="button" data-close-dialog>Fechar</button>
   </dialog>

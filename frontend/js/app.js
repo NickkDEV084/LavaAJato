@@ -6,6 +6,7 @@ import { initCustomerPage } from "./features/customer/customer-page.js";
 import { initRequestsDashboard } from "./features/requests/dashboard-page.js";
 import { initOrdersPage } from "./features/requests/orders-page.js";
 import { initServicesPage } from "./features/services/services-page.js";
+import { initSchedulePage } from "./features/customer/schedule-page.js";
 import { initManagerNavigation } from "./features/navigation/manager-navigation.js";
 
 const page = document.body.dataset.page;
@@ -46,6 +47,7 @@ if (page === "auth") {
 
     // Inicializa somente as funções já implementadas nas telas anexadas.
     if (page === "orders") initOrdersPage();
+    if (page === "schedule") initSchedulePage();
     if (page === "services") initServicesPage();
     if (page === "dashboard") initRequestsDashboard();
 
