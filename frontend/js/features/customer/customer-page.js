@@ -1,6 +1,7 @@
 import { signOut } from "../auth/auth-repository.js";
 import {
   cancelCustomerAppointment,
+  completeCustomerAppointmentPayment,
   createCustomerAppointment,
   getAvailableServices,
   getCustomerAppointment,
@@ -14,6 +15,8 @@ const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" });
 const statusLabels = {
   agendado: "Agendado",
+  confirmado: "Confirmado",
+  "pronto-retirada": "Pronto para retirada",
   cancelado: "Cancelado",
   concluido: "Concluído",
   "concluído": "Concluído",
@@ -48,6 +51,26 @@ export function initCustomerPage() {
   const detailsDialog = document.querySelector("#appointment-details-dialog");
   const rescheduleDialog = document.querySelector("#appointment-reschedule-dialog");
   const rescheduleForm = document.querySelector("#reschedule-form");
+  const openedPaymentAppointments = new Set();
+  const paymentDialog = document.createElement("dialog");
+  paymentDialog.className = "customer-dialog";
+  paymentDialog.setAttribute("aria-labelledby", "appointment-payment-title");
+  const paymentHeading = createTextElement("h2", "", "Seu veículo está pronto");
+  paymentHeading.id = "appointment-payment-title";
+  const paymentDescription = createTextElement("p", "", "");
+  const paymentAmount = createTextElement("strong", "", "");
+  paymentAmount.style.display = "block";
+  paymentAmount.style.fontSize = "1.5rem";
+  paymentAmount.style.margin = "20px 0 8px";
+  const paymentHint = createTextElement("p", "", "Pagamento de demonstração: nenhuma cobrança real será feita.");
+  const confirmPaymentButton = createTextElement("button", "customer-button customer-button-primary", "Confirmar pagamento simulado");
+  confirmPaymentButton.type = "button";
+  const deferPaymentButton = createTextElement("button", "customer-button customer-button-secondary", "Pagar depois");
+  deferPaymentButton.type = "button";
+  paymentDialog.append(paymentHeading, paymentDescription, paymentAmount, paymentHint, confirmPaymentButton, deferPaymentButton);
+  document.body.append(paymentDialog);
+
+  let paymentAppointmentId = null;
 
   let currentServices = [];
 
@@ -57,12 +80,33 @@ export function initCustomerPage() {
     notice.hidden = !message;
   }
 
+  function openPayment(appointment) {
+    paymentAppointmentId = appointment.id;
+    paymentDescription.textContent = `${appointment.serviceName} · ${formatDate(appointment.date)} às ${appointment.time}`;
+    paymentAmount.textContent = currency.format(Number(appointment.servicePrice) || 0);
+    if (!paymentDialog.open) paymentDialog.showModal();
+  }
+
+  deferPaymentButton.addEventListener("click", () => paymentDialog.close());
+  confirmPaymentButton.addEventListener("click", () => {
+    if (!paymentAppointmentId) return;
+    try {
+      completeCustomerAppointmentPayment(paymentAppointmentId);
+      paymentDialog.close();
+      showNotice("Pagamento simulado confirmado. Agendamento concluído.", "success");
+      renderAppointments();
+    } catch (error) {
+      showNotice(error.message || "Não foi possível concluir o pagamento simulado.");
+    }
+  });
+
   function loadProfile() {
     const profile = getCustomerProfile();
     profileForm.elements.name.value = profile.name;
-    profileForm.elements.email.value = profile.email;
     profileForm.elements.phone.value = profile.phone;
-    profileForm.elements.address.value = profile.address;
+    profileForm.elements.car.value = profile.car;
+    profileForm.elements.brand.value = profile.brand;
+    profileForm.elements.plate.value = profile.plate;
     document.querySelector("#customer-welcome-name").textContent = profile.name.split(" ")[0] || "cliente";
   }
 
@@ -100,6 +144,9 @@ export function initCustomerPage() {
     document.querySelector("#details-status").textContent = statusLabels[appointment.status] || appointment.status;
     document.querySelector("#details-price").textContent = currency.format(Number(appointment.servicePrice) || 0);
     document.querySelector("#details-duration").textContent = `${Number(appointment.serviceDuration) || 0} min`;
+    document.querySelector("#details-car").textContent = appointment.car || "—";
+    document.querySelector("#details-brand").textContent = appointment.brand || "—";
+    document.querySelector("#details-plate").textContent = appointment.plate || "—";
     detailsDialog.showModal();
   }
 
@@ -169,9 +216,22 @@ export function initCustomerPage() {
         actions.append(cancelButton);
       }
 
+      if (appointment.status === "pronto-retirada") {
+        const payButton = createTextElement("button", "customer-button customer-button-primary", "Abrir pagamento");
+        payButton.type = "button";
+        payButton.addEventListener("click", () => openPayment(appointment));
+        actions.append(payButton);
+      }
+
       card.append(actions);
       appointmentsList.append(card);
     });
+
+    const readyAppointment = appointments.find((appointment) => appointment.status === "pronto-retirada");
+    if (readyAppointment && !openedPaymentAppointments.has(readyAppointment.id)) {
+      openedPaymentAppointments.add(readyAppointment.id);
+      openPayment(readyAppointment);
+    }
   }
 
   profileForm.addEventListener("submit", (event) => {
@@ -180,9 +240,10 @@ export function initCustomerPage() {
     try {
       const profile = saveCustomerProfile({
         name: data.get("name"),
-        email: data.get("email"),
         phone: data.get("phone"),
-        address: data.get("address"),
+        car: data.get("car"),
+        brand: data.get("brand"),
+        plate: data.get("plate"),
       });
       document.querySelector("#customer-welcome-name").textContent = profile.name.split(" ")[0];
       showNotice("Perfil atualizado.", "success");
@@ -234,7 +295,7 @@ export function initCustomerPage() {
 
   document.querySelector("#customer-sign-out").addEventListener("click", () => {
     signOut();
-    window.location.replace("index.html");
+    window.location.replace("auth.html?next=cliente.html");
   });
 
   window.addEventListener("storage", (event) => {

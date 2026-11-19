@@ -1,5 +1,4 @@
 import { readJson, writeJson } from "../../core/storage.js";
-import { isValidEmail, normalizeEmail } from "../../core/validation.js";
 import { getSession } from "../auth/auth-repository.js";
 import { getActiveServices } from "../services/service-repository.js";
 
@@ -47,39 +46,36 @@ export function getCustomerProfile() {
     name: user.name || "",
     email: user.email || "",
     phone: user.phone || "",
-    address: user.address || "",
+    car: user.car || "",
+    brand: user.brand || "",
+    plate: user.plate || "",
   };
 }
 
-export function saveCustomerProfile({ name, email, phone, address }) {
+export function saveCustomerProfile({ name, phone, car, brand, plate }) {
   const customerId = currentCustomerId();
   const users = readUsers();
   const user = users.find((item) => item.id === customerId);
   if (!user) throw new Error("Não foi possível localizar o perfil desta conta.");
 
   const cleanName = String(name || "").trim().replace(/\s+/g, " ");
-  const cleanEmail = normalizeEmail(String(email || ""));
   const cleanPhone = String(phone || "").trim();
   if (cleanName.length < 2) throw new Error("Informe seu nome completo.");
-  if (!isValidEmail(cleanEmail)) throw new Error("Informe um e-mail válido.");
-  if (users.some((item) => item.id !== customerId && normalizeEmail(item.email) === cleanEmail)) {
-    throw new Error("Este e-mail já está vinculado a outra conta.");
-  }
 
   Object.assign(user, {
     name: cleanName,
-    email: cleanEmail,
     phone: cleanPhone,
-    address: String(address || "").trim(),
+    car: String(car || "").trim(),
+    brand: String(brand || "").trim(),
+    plate: String(plate || "").trim().toLocaleUpperCase("pt-BR"),
     updatedAt: new Date().toISOString(),
   });
   writeJson(localStorage, USERS_KEY, users);
 
-  // Mantém os dados visíveis da sessão atual em sincronia com o perfil.
+  // O e-mail continua reservado à autenticação; só o nome é sincronizado aqui.
   const session = readJson(sessionStorage, SESSION_KEY, null);
   if (session?.user?.id === customerId) {
     session.user.name = cleanName;
-    session.user.email = cleanEmail;
     writeJson(sessionStorage, SESSION_KEY, session);
   }
 
@@ -103,6 +99,84 @@ export function listCustomerAppointments() {
     .sort((left, right) => `${left.date}T${left.time}`.localeCompare(`${right.date}T${right.time}`));
 }
 
+export function listAppointmentsForManagement() {
+  return readAppointments().sort((left, right) => `${left.date}T${left.time}`.localeCompare(`${right.date}T${right.time}`));
+}
+
+export function listCustomersForManagement() {
+  return readUsers().map((user) => ({
+    id: user.id,
+    name: user.name || "Cliente",
+    phone: user.phone || "",
+    car: user.car || "",
+    brand: user.brand || "",
+    plate: user.plate || "",
+  }));
+}
+
+export function createAppointmentForManagement({ customerId, serviceId, date, time }) {
+  validateSchedule(date, time);
+  const customer = listCustomersForManagement().find((user) => user.id === customerId);
+  if (!customer) throw new Error("Selecione um cliente cadastrado.");
+  const service = getAvailableServices().find((item) => item.id === serviceId);
+  if (!service) throw new Error("Selecione um serviço disponível.");
+
+  const now = new Date().toISOString();
+  const appointment = {
+    id: createId(),
+    customerId: customer.id,
+    customerName: customer.name,
+    customerPhone: customer.phone,
+    car: customer.car,
+    brand: customer.brand,
+    plate: customer.plate,
+    serviceId: service.id,
+    serviceName: service.name,
+    servicePrice: service.price,
+    serviceDuration: service.duration,
+    date,
+    time,
+    status: "agendado",
+    createdAt: now,
+    updatedAt: now,
+  };
+  writeJson(localStorage, APPOINTMENTS_KEY, [appointment, ...readAppointments()]);
+  return appointment;
+}
+
+export function updateAppointmentStatusForManagement(appointmentId, status) {
+  const appointments = readAppointments();
+  const appointment = appointments.find((item) => item.id === appointmentId);
+  if (!appointment) throw new Error("Este agendamento não está mais disponível.");
+
+  const allowedTransitions = {
+    agendado: ["confirmado", "cancelado"],
+    confirmado: ["pronto-retirada", "cancelado"],
+  };
+  if (!allowedTransitions[appointment.status]?.includes(status)) {
+    throw new Error("Esta mudança de status não está disponível.");
+  }
+
+  appointment.status = status;
+  appointment.updatedAt = new Date().toISOString();
+  writeJson(localStorage, APPOINTMENTS_KEY, appointments);
+  return appointment;
+}
+
+export function completeCustomerAppointmentPayment(appointmentId) {
+  const customerId = currentCustomerId();
+  const appointments = readAppointments();
+  const appointment = appointments.find((item) => item.id === appointmentId && item.customerId === customerId);
+  if (!appointment) throw new Error("Este agendamento não está disponível nesta conta.");
+  if (appointment.status !== "pronto-retirada") throw new Error("Este agendamento ainda não está pronto para pagamento.");
+
+  appointment.status = "concluido";
+  appointment.paidAt = new Date().toISOString();
+  appointment.updatedAt = appointment.paidAt;
+  writeJson(localStorage, APPOINTMENTS_KEY, appointments);
+  return appointment;
+}
+
 export function getCustomerAppointment(appointmentId) {
   const customerId = currentCustomerId();
   const appointment = readAppointments().find((item) => item.id === appointmentId && item.customerId === customerId);
@@ -112,6 +186,7 @@ export function getCustomerAppointment(appointmentId) {
 
 export function createCustomerAppointment({ serviceId, date, time }) {
   const customerId = currentCustomerId();
+  const profile = getCustomerProfile();
   validateSchedule(date, time);
   const service = getAvailableServices().find((item) => item.id === serviceId);
   if (!service) throw new Error("Escolha um serviço disponível.");
@@ -120,6 +195,11 @@ export function createCustomerAppointment({ serviceId, date, time }) {
   const appointment = {
     id: createId(),
     customerId,
+    customerName: profile.name,
+    customerPhone: profile.phone,
+    car: profile.car,
+    brand: profile.brand,
+    plate: profile.plate,
     serviceId: service.id,
     serviceName: service.name,
     servicePrice: service.price,
