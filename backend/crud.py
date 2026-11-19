@@ -30,7 +30,7 @@ def _alterar(sql, dados=(), criar=False):
         conexao.close()
 
 
-# Perfil do cliente
+
 def criar_cliente(nome, telefone="", carro="", marca="", placa=""):
     return _alterar(
         "INSERT INTO clientes (nome, telefone, carro, marca, placa) VALUES (?, ?, ?, ?, ?)",
@@ -50,7 +50,7 @@ def atualizar_cliente(cliente_id, nome, telefone="", carro="", marca="", placa="
     )
 
 
-# Catálogo exibido no formulário de agendamento
+
 def listar_servicos():
     return _consultar(
         "SELECT id, nome, descricao, preco, duracao_min FROM servicos "
@@ -59,7 +59,7 @@ def listar_servicos():
     )
 
 
-# Agendamentos: criar, consultar, remarcar e cancelar sem apagar o histórico.
+
 def criar_agendamento(cliente_id, servico_id, data, horario):
     return _alterar(
         "INSERT INTO agendamentos (cliente_id, servico_id, data, horario) VALUES (?, ?, ?, ?)",

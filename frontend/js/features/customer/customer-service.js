@@ -99,6 +99,84 @@ export function listCustomerAppointments() {
     .sort((left, right) => `${left.date}T${left.time}`.localeCompare(`${right.date}T${right.time}`));
 }
 
+export function listAppointmentsForManagement() {
+  return readAppointments().sort((left, right) => `${left.date}T${left.time}`.localeCompare(`${right.date}T${right.time}`));
+}
+
+export function listCustomersForManagement() {
+  return readUsers().map((user) => ({
+    id: user.id,
+    name: user.name || "Cliente",
+    phone: user.phone || "",
+    car: user.car || "",
+    brand: user.brand || "",
+    plate: user.plate || "",
+  }));
+}
+
+export function createAppointmentForManagement({ customerId, serviceId, date, time }) {
+  validateSchedule(date, time);
+  const customer = listCustomersForManagement().find((user) => user.id === customerId);
+  if (!customer) throw new Error("Selecione um cliente cadastrado.");
+  const service = getAvailableServices().find((item) => item.id === serviceId);
+  if (!service) throw new Error("Selecione um serviço disponível.");
+
+  const now = new Date().toISOString();
+  const appointment = {
+    id: createId(),
+    customerId: customer.id,
+    customerName: customer.name,
+    customerPhone: customer.phone,
+    car: customer.car,
+    brand: customer.brand,
+    plate: customer.plate,
+    serviceId: service.id,
+    serviceName: service.name,
+    servicePrice: service.price,
+    serviceDuration: service.duration,
+    date,
+    time,
+    status: "agendado",
+    createdAt: now,
+    updatedAt: now,
+  };
+  writeJson(localStorage, APPOINTMENTS_KEY, [appointment, ...readAppointments()]);
+  return appointment;
+}
+
+export function updateAppointmentStatusForManagement(appointmentId, status) {
+  const appointments = readAppointments();
+  const appointment = appointments.find((item) => item.id === appointmentId);
+  if (!appointment) throw new Error("Este agendamento não está mais disponível.");
+
+  const allowedTransitions = {
+    agendado: ["confirmado", "cancelado"],
+    confirmado: ["pronto-retirada", "cancelado"],
+  };
+  if (!allowedTransitions[appointment.status]?.includes(status)) {
+    throw new Error("Esta mudança de status não está disponível.");
+  }
+
+  appointment.status = status;
+  appointment.updatedAt = new Date().toISOString();
+  writeJson(localStorage, APPOINTMENTS_KEY, appointments);
+  return appointment;
+}
+
+export function completeCustomerAppointmentPayment(appointmentId) {
+  const customerId = currentCustomerId();
+  const appointments = readAppointments();
+  const appointment = appointments.find((item) => item.id === appointmentId && item.customerId === customerId);
+  if (!appointment) throw new Error("Este agendamento não está disponível nesta conta.");
+  if (appointment.status !== "pronto-retirada") throw new Error("Este agendamento ainda não está pronto para pagamento.");
+
+  appointment.status = "concluido";
+  appointment.paidAt = new Date().toISOString();
+  appointment.updatedAt = appointment.paidAt;
+  writeJson(localStorage, APPOINTMENTS_KEY, appointments);
+  return appointment;
+}
+
 export function getCustomerAppointment(appointmentId) {
   const customerId = currentCustomerId();
   const appointment = readAppointments().find((item) => item.id === appointmentId && item.customerId === customerId);

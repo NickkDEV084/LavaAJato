@@ -51,7 +51,7 @@ export function initOrdersPage() {
       const nextActions = request.status === "Solicitado"
         ? [["Confirmado", "Confirmar", "btn-small"], ["Cancelado", "Cancelar", "btn-small btn-small-muted"]]
         : request.status === "Confirmado"
-          ? [["Concluído", "Concluir", "btn-small"], ["Cancelado", "Cancelar", "btn-small btn-small-muted"]]
+          ? [["Pronto para retirada", "Pronto p/ retirada", "btn-small"], ["Cancelado", "Cancelar", "btn-small btn-small-muted"]]
           : [];
 
       if (nextActions.length) {

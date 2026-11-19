@@ -1,5 +1,5 @@
 import { getActiveServices } from "../services/service-repository.js";
-import { createRequest, getRequests } from "./request-repository.js";
+import { createRequest, getRequests, updateRequestStatus } from "./request-repository.js";
 
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const dateTime = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -23,6 +23,81 @@ export function initClientPage() {
   const history = document.querySelector("#request-history");
   const emailInput = form.elements.email;
   const dateInput = form.elements.data;
+  const openedPaymentRequests = new Set();
+
+  // Tela de pagamento montada pelo JavaScript: nenhum HTML ou serviço externo é necessário.
+  const paymentDialog = document.createElement("dialog");
+  paymentDialog.className = "request-payment-dialog";
+  Object.assign(paymentDialog.style, {
+    width: "min(440px, calc(100% - 32px))",
+    padding: "28px",
+    border: "0",
+    borderRadius: "18px",
+    color: "#17324d",
+    boxShadow: "0 24px 80px #102a4350",
+  });
+  const paymentTitle = document.createElement("h2");
+  paymentTitle.textContent = "Seu pedido está pronto";
+  const paymentDescription = document.createElement("p");
+  const paymentAmount = document.createElement("strong");
+  paymentAmount.style.display = "block";
+  paymentAmount.style.fontSize = "1.5rem";
+  paymentAmount.style.margin = "20px 0 8px";
+  const paymentHint = document.createElement("p");
+  paymentHint.textContent = "Demonstração: nenhum pagamento real será realizado.";
+  const confirmPaymentButton = document.createElement("button");
+  confirmPaymentButton.type = "button";
+  confirmPaymentButton.textContent = "Confirmar pagamento simulado";
+  Object.assign(confirmPaymentButton.style, {
+    display: "block",
+    width: "100%",
+    marginTop: "20px",
+    padding: "12px",
+    border: "0",
+    borderRadius: "10px",
+    background: "#087f5b",
+    color: "white",
+    font: "inherit",
+    fontWeight: "700",
+    cursor: "pointer",
+  });
+  const closePaymentButton = document.createElement("button");
+  closePaymentButton.type = "button";
+  closePaymentButton.textContent = "Pagar depois";
+  Object.assign(closePaymentButton.style, {
+    display: "block",
+    margin: "12px auto 0",
+    padding: "8px",
+    border: "0",
+    background: "transparent",
+    color: "#456",
+    font: "inherit",
+    cursor: "pointer",
+  });
+  paymentDialog.append(paymentTitle, paymentDescription, paymentAmount, paymentHint, confirmPaymentButton, closePaymentButton);
+  document.body.append(paymentDialog);
+
+  let selectedPaymentRequestId = null;
+
+  function openPayment(request) {
+    selectedPaymentRequestId = request.id;
+    paymentDescription.textContent = `${request.service?.name || "Serviço"} · pedido ${request.id.slice(-6).toUpperCase()}`;
+    paymentAmount.textContent = currency.format(Number(request.service?.price) || 0);
+    if (!paymentDialog.open) paymentDialog.showModal();
+  }
+
+  closePaymentButton.addEventListener("click", () => paymentDialog.close());
+  confirmPaymentButton.addEventListener("click", () => {
+    if (!selectedPaymentRequestId) return;
+    try {
+      updateRequestStatus(selectedPaymentRequestId, "Concluído");
+      paymentDialog.close();
+      showNotice("Pagamento simulado confirmado. Pedido concluído!", "success");
+      renderHistory();
+    } catch (error) {
+      showNotice(error.message || "Não foi possível concluir a simulação de pagamento.");
+    }
+  });
 
   dateInput.min = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 
@@ -107,8 +182,21 @@ export function initClientPage() {
       const number = document.createElement("small");
       number.textContent = `Pedido ${request.id.slice(-6).toUpperCase()}`;
       item.append(main, status, number);
+      if (request.status === "Pronto para retirada") {
+        const payButton = document.createElement("button");
+        payButton.type = "button";
+        payButton.textContent = "Ver pagamento";
+        payButton.addEventListener("click", () => openPayment(request));
+        item.append(payButton);
+      }
       history.append(item);
     });
+
+    const readyRequest = requests.find((request) => request.status === "Pronto para retirada");
+    if (readyRequest && !openedPaymentRequests.has(readyRequest.id)) {
+      openedPaymentRequests.add(readyRequest.id);
+      openPayment(readyRequest);
+    }
   }
 
   serviceSelect.addEventListener("change", updateQuote);
