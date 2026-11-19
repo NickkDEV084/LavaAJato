@@ -199,7 +199,7 @@ uv run ruff check .
 uv run ruff format .
 ```
 
-O CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) roda a cada Pull Request e a cada push na `develop`: instala as dependências com `uv sync --locked` (falha se o `uv.lock` estiver desatualizado), roda `ruff check .`, `ruff format --check .` e `pytest`.
+O CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) roda a cada Pull Request e a cada push na `develop` e na `Principal!`: instala as dependências com `uv sync --locked` (falha se o `uv.lock` estiver desatualizado), roda `ruff check .`, `ruff format --check .` e `pytest`.
 
 ## Deploy (Render)
 
