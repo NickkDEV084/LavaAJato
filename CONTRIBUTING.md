@@ -1,7 +1,8 @@
 # Como contribuir
 
 ## Branches
-- `main`: sempre estável, só recebe release (protegida)
+- Fluxo: `feature/*` → `develop` → `Principal!`
+- `Principal!`: branch de produção, sempre estável, só recebe release (protegida)
 - `develop`: integração do que está pronto
 - Trabalho do dia a dia: `feature/`, `fix/`, `docs/`, `hotfix/`
 - Nome: `tipo/assunto-curto` (minúsculo, com hífen). Ex.: `feature/agenda-fila`
@@ -16,7 +17,7 @@ Ex.: `feat(agenda): bloquear horário em conflito`
 - Título no padrão do commit
 - Descrição do que mudou e link da issue (`Closes #12`)
 - Testes passando e ao menos 1 revisão antes do merge
-- Ninguém escreve direto na `main`
+- Ninguém escreve direto na `Principal!`
 
 ## Segurança
 Arquivos `.env` e senhas nunca vão para o Git.
