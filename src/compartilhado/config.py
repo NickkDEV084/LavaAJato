@@ -19,9 +19,6 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Ex.: postgresql+psycopg://lavaajato:lavaajato@localhost:5434/lavaajato
-    DATABASE_URL: str
-
     # Origens liberadas no CORS, separadas por vírgula no .env.
     # Ex.: CORS_ORIGINS=http://localhost:5500,http://127.0.0.1:5500
     CORS_ORIGINS: Annotated[list[str], NoDecode] = []

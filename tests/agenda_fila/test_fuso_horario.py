@@ -44,7 +44,7 @@ def test_fuso_padrao_e_america_recife() -> None:
 
 def test_fuso_invalido_e_rejeitado_na_configuracao() -> None:
     with pytest.raises(ValueError, match="Fuso horário inválido"):
-        Settings(DATABASE_URL="sqlite://", SECRET_KEY="x", TIMEZONE="Lugar/Inexistente")
+        Settings(SECRET_KEY="x", TIMEZONE="Lugar/Inexistente")
 
 
 def test_horario_futuro_em_recife_e_aceito_mesmo_ja_passado_em_utc(

@@ -53,78 +53,13 @@ LavaAjato/
 
 ## Como rodar o backend
 
-Stack: Python 3.12+, FastAPI, SQLAlchemy 2, Alembic e PostgreSQL 16 (no Docker), gerenciado com [uv](https://docs.astral.sh/uv/). O driver do banco é o `psycopg` 3 (já vem compilado; não precisa instalar nada além do Docker).
+Stack: Python 3.12+, FastAPI e SQLite, gerenciado com [uv](https://docs.astral.sh/uv/). O banco é o arquivo `lavaajato.db`, na raiz do projeto, que já vem com as tabelas `servicos`, `clientes` e `agendamentos`. Não precisa de Docker nem de servidor de banco.
 
-> A API fica em `src/`. O código antigo em SQLite (pasta `backend/` da branch `teste-juncao`) serve só de referência.
+> A API fica em `src/` (rotas em `src/agenda_fila`). O código antigo da pasta `backend/` serve só de referência.
 
 ### Pré-requisitos (Windows)
 
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) (ele baixa o Python se precisar)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-
-### Passo a passo (cmd, na raiz do projeto)
-
-```cmd
-:: 1. Subir o PostgreSQL e esperar o STATUS ficar "healthy"
-::    (o próprio container cria o banco "lavaajato")
-docker compose up -d
-docker compose ps
-
-:: 2. Criar o .env a partir do exemplo
-copy .env.example .env
-
-:: 3. Gerar uma SECRET_KEY e colar no .env (no lugar do valor de exemplo)
-uv run python -c "import secrets; print(secrets.token_urlsafe(32))"
-
-:: 4. Instalar as dependências (cria a .venv)
-uv sync
-
-:: 5. Criar/atualizar as tabelas com as migrations
-uv run alembic upgrade head
-
-:: 6. Rodar a API
-uv run uvicorn src.main:app --reload
-```
-
-Com a API rodando:
-
-- http://127.0.0.1:8000/health: a API está no ar
-- http://127.0.0.1:8000/health/db: a API está conseguindo falar com o banco
-- http://127.0.0.1:8000/docs: documentação interativa (Swagger)
-
-### Testes e lint
-
-Os testes usam SQLite em memória e definem as próprias variáveis (inclusive a `SECRET_KEY`), então **não precisam** do Docker nem do `.env`.
-
-```cmd
-uv run pytest
-uv run ruff check .
-uv run ruff format .
-```
-
-### Comandos úteis
-
-```cmd
-:: Criar uma migration depois de mudar os modelos
-uv run alembic revision --autogenerate -m "cria tabela clientes"
-
-:: Parar o PostgreSQL (os dados continuam no volume "pgdata")
-docker compose down
-
-:: Parar e APAGAR todos os dados do banco
-docker compose down -v
-```
-
-## Área do cliente (API + SQLite)
-
-A área do cliente (`frontend/cliente.html`) conversa com a API pelas rotas `/cliente/*` (módulo `src/agenda_fila`). Os dados ficam no SQLite `lavaajato.db`, na raiz do projeto, que já vem com as tabelas `servicos`, `clientes` e `agendamentos`.
-
-> **O PostgreSQL não é necessário para a área do cliente.** Não precisa rodar `docker compose up` nem `alembic upgrade head`. A variável `DATABASE_URL` continua obrigatória no `.env`, mas pode ficar com o valor do exemplo: a API só tenta conectar no Postgres quando alguém chama `/health/db`.
-
-### Pré-requisitos
-
-- Python 3.12 ou mais novo
-- [uv](https://docs.astral.sh/uv/getting-started/installation/)
 
 ### Configurar o `.env` (cmd, na raiz do projeto)
 
@@ -132,22 +67,25 @@ A área do cliente (`frontend/cliente.html`) conversa com a API pelas rotas `/cl
 copy .env.example .env
 ```
 
-No `.env`, revise as variáveis da área do cliente:
+Depois revise as variáveis no `.env`:
 
 | Variável | Para que serve | Exemplo |
 |---|---|---|
-| `SECRET_KEY` | Chave secreta da aplicação. Gere uma com `uv run python -c "import secrets; print(secrets.token_urlsafe(32))"` e cole no lugar do valor de exemplo | `troque-por-uma-chave-aleatoria` |
+| `SECRET_KEY` | Chave secreta da aplicação (obrigatória). Gere uma com `uv run python -c "import secrets; print(secrets.token_urlsafe(32))"` e cole no lugar do valor de exemplo | `troque-por-uma-chave-aleatoria` |
+| `CORS_ORIGINS` | Origens do front que podem chamar a API, separadas por vírgula. Sem a origem do front, o navegador bloqueia as chamadas | `http://localhost:5500,http://127.0.0.1:5500` |
 | `SQLITE_PATH` | Caminho do banco SQLite. Um caminho relativo é resolvido a partir da raiz do projeto | `lavaajato.db` |
 | `TIMEZONE` | Fuso (nome IANA) usado nas regras de horário dos agendamentos, independente do fuso do servidor | `America/Recife` |
-
-Deixe também `CORS_ORIGINS` com a origem do front (`http://localhost:5500,http://127.0.0.1:5500`), senão o navegador bloqueia as chamadas.
+| `GESTAO_CHAVE` | Chave da área de gestão, enviada pelo front no header `X-Chave-Gestao`. Vazia, a API recusa as rotas `/gestao/*` com `503`. Gere uma com o mesmo comando da `SECRET_KEY` | (vazia no exemplo) |
 
 ### Subir a API e o front
 
 Terminal 1, na raiz do projeto:
 
 ```cmd
+:: Instalar as dependências (cria a .venv)
 uv sync
+
+:: Rodar a API
 uv run uvicorn src.main:app --reload
 ```
 
@@ -160,7 +98,11 @@ python -m http.server 5500
 
 Depois abra http://127.0.0.1:5500/cliente.html. O endereço da API usado pelo front fica em `frontend/js/core/config.js` (`API_BASE_URL`).
 
-Documentação interativa da API (Swagger): http://127.0.0.1:8000/docs
+Com a API rodando:
+
+- http://127.0.0.1:8000/health: a API está no ar
+- http://127.0.0.1:8000/health/db: o `lavaajato.db` abre e tem as tabelas `servicos`, `clientes` e `agendamentos` (responde `503` se não)
+- http://127.0.0.1:8000/docs: documentação interativa (Swagger)
 
 ### Rotas `/cliente/*`
 
@@ -180,12 +122,28 @@ Todas as rotas exigem o header `X-Usuario-Id` com o identificador do cliente. Se
 | POST | `/cliente/agendamentos/{agendamento_id}/cancelar` | Cancela um agendamento |
 | POST | `/cliente/agendamentos/{agendamento_id}/pagar` | Marca um agendamento como pago |
 
-### Testes
+### Rotas `/gestao/*`
 
-Os testes da área do cliente usam um SQLite temporário e não mexem no `lavaajato.db`.
+Todas as rotas exigem o header `X-Chave-Gestao` igual à `GESTAO_CHAVE` do `.env`. Sem a `GESTAO_CHAVE` configurada a API responde `503`; sem o header, `401`; com a chave errada, `403`.
+
+| Método | Rota | O que faz |
+|---|---|---|
+| GET | `/gestao/servicos` | Lista os serviços |
+| GET | `/gestao/clientes` | Lista os clientes |
+| GET | `/gestao/agendamentos` | Lista os agendamentos (filtros opcionais `?data=AAAA-MM-DD&status=...`) |
+| POST | `/gestao/agendamentos` | Cria um agendamento (responde `201`) |
+| POST | `/gestao/agendamentos/{agendamento_id}/confirmar` | Confirma um agendamento |
+| POST | `/gestao/agendamentos/{agendamento_id}/pronto-retirada` | Marca o veículo como pronto para retirada |
+| POST | `/gestao/agendamentos/{agendamento_id}/cancelar` | Cancela um agendamento |
+
+### Testes e lint
+
+Os testes usam um SQLite temporário com o mesmo schema do `lavaajato.db` (nunca mexem no arquivo real) e definem as próprias variáveis, então **não precisam** do `.env`.
 
 ```cmd
 uv run pytest
+uv run ruff check .
+uv run ruff format .
 ```
 
 ## Como o Git funciona aqui
