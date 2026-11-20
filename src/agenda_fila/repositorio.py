@@ -192,3 +192,26 @@ def atualizar_status_se(
             (novo_status, agora, agendamento_id, status_atual),
         )
     return cursor.rowcount == 1
+
+
+# --- API REST (/api/agendamentos) -------------------------------------------
+
+
+def atualizar_agendamento(
+    conexao: sqlite3.Connection,
+    agendamento_id: int,
+    campos: dict[str, Any],
+) -> None:
+    """UPDATE dos campos informados. Os nomes das colunas vêm do código, nunca do cliente."""
+    colunas = ", ".join(f"{coluna} = ?" for coluna in campos)
+    with conexao:
+        conexao.execute(
+            f"UPDATE agendamentos SET {colunas} WHERE id = ?",  # noqa: S608
+            [*campos.values(), agendamento_id],
+        )
+
+
+def apagar_agendamento(conexao: sqlite3.Connection, agendamento_id: int) -> bool:
+    with conexao:
+        cursor = conexao.execute("DELETE FROM agendamentos WHERE id = ?", (agendamento_id,))
+    return cursor.rowcount == 1

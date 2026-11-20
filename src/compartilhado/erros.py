@@ -59,9 +59,13 @@ async def _erro_validacao(request: Request, exc: RequestValidationError) -> JSON
         {"campo": ".".join(str(parte) for parte in erro["loc"]), "mensagem": erro["msg"]}
         for erro in exc.errors()
     ]
-    return resposta_erro(
-        status.HTTP_422_UNPROCESSABLE_CONTENT, "Dados inválidos na requisição", detalhes
+    # A API REST (/api/*) responde 400 a dados inválidos; as rotas antigas mantêm 422.
+    codigo = (
+        status.HTTP_400_BAD_REQUEST
+        if request.url.path.startswith("/api/")
+        else status.HTTP_422_UNPROCESSABLE_CONTENT
     )
+    return resposta_erro(codigo, "Dados inválidos na requisição", detalhes)
 
 
 async def _erro_banco(request: Request, exc: sqlite3.Error) -> JSONResponse:

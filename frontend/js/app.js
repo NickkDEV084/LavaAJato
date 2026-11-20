@@ -1,7 +1,6 @@
 import { initAuthPage } from "./features/auth/auth-page.js";
 import { getPostAuthDestination } from "./features/auth/auth-navigation.js";
 import { getSession, signOut } from "./features/auth/auth-repository.js";
-import { initClientPage } from "./features/requests/client-page.js";
 import { initCustomerPage } from "./features/customer/customer-page.js";
 import { initRequestsDashboard } from "./features/requests/dashboard-page.js";
 import { initOrdersPage } from "./features/requests/orders-page.js";
@@ -17,8 +16,6 @@ if (page === "auth") {
   } else {
     initAuthPage();
   }
-} else if (page === "client") {
-  initClientPage();
 } else if (page === "customer-area") {
   if (!getSession()) {
     window.location.replace("auth?next=cliente");

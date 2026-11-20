@@ -13,6 +13,8 @@ O sistema está publicado em **https://lavaajato.onrender.com**.
 | [`/`](https://lavaajato.onrender.com/) | Área do cliente (abre a `/cliente`) |
 | [`/agenda`](https://lavaajato.onrender.com/agenda) | Agenda da gestão |
 | [`/docs`](https://lavaajato.onrender.com/docs) | Documentação interativa da API (Swagger) |
+| [`/api`](https://lavaajato.onrender.com/api) | Índice das rotas da API, em JSON |
+| [`/api/agendamentos`](https://lavaajato.onrender.com/api/agendamentos) | Lista de agendamentos, em JSON |
 
 - **A agenda da gestão pede uma chave de acesso.** Ela é configurada no servidor e **não é pública**; quem não tem a chave consegue usar a área do cliente e a documentação da API normalmente. Antes da chave, a página pede o acesso de demonstração (`/auth`), como as demais telas da gestão.
 - **A primeira visita pode levar cerca de 1 minuto.** O serviço está no plano free do Render, que "adormece" depois de um tempo sem acessos.
@@ -103,7 +105,21 @@ As demais pastas em `src/` (`clientes_veiculos`, `servicos_precos`, `pedidos_pag
 
 ## Rotas da API
 
-A documentação completa, com os formatos de entrada e saída, fica em `/docs` (Swagger) e `/openapi.json`.
+A documentação completa, com os formatos de entrada e saída, fica em `/docs` (Swagger) e `/openapi.json`. `GET /api` devolve em JSON a lista de todas as rotas.
+
+### API REST de agendamentos: `/api/agendamentos`
+
+Recebe e devolve JSON. Cada agendamento sai como um dicionário simples: `id`, `cliente_id`, `nome_cliente`, `telefone_cliente`, `carro`, `marca`, `placa`, `servico_id`, `servico`, `data`, `horario`, `status`, `preco`, `duracao_min`, `criado_em`, `atualizado_em`.
+
+| Método | Rota | Acesso | Corpo | Resposta |
+|---|---|---|---|---|
+| GET | `/api/agendamentos` | aberto | (filtros opcionais `?data=AAAA-MM-DD&status=`) | 200 com a lista |
+| GET | `/api/agendamentos/{id}` | aberto | | 200, ou 404 |
+| POST | `/api/agendamentos` | `X-Chave-Gestao` | `{cliente_id, servico_id, data, horario}` | 201 com o criado |
+| PUT | `/api/agendamentos/{id}` | `X-Chave-Gestao` | `{cliente_id, servico_id, data, horario, status}` | 200 com o atualizado, ou 404 |
+| DELETE | `/api/agendamentos/{id}` | `X-Chave-Gestao` | | 200 com o apagado, ou 404 |
+
+Dados inválidos (JSON malformado, data fora de `AAAA-MM-DD`, horário fora de `HH:MM`, horário no passado, cliente ou serviço inexistente, status desconhecido) respondem **400** com `{"erro": {"codigo", "mensagem", "detalhes"}}`. Sem a chave, 401; com a chave errada, 403. Ao contrário do "cancelar" das áreas de cliente e gestão, o `DELETE` apaga a linha de verdade.
 
 ### Área do cliente: `/cliente/*`
 
@@ -203,7 +219,7 @@ Esta é a forma oficial de rodar o projeto localmente. As páginas abrem sem o `
 
 ## Testes e qualidade
 
-Os testes usam um SQLite temporário com o mesmo schema do `lavaajato.db` (nunca alteram o arquivo real) e definem as próprias variáveis de ambiente, então não precisam do `.env`. Hoje são 225 testes.
+Os testes usam um SQLite temporário com o mesmo schema do `lavaajato.db` (nunca alteram o arquivo real) e definem as próprias variáveis de ambiente, então não precisam do `.env`. Hoje são 242 testes.
 
 ```cmd
 uv run pytest
@@ -219,7 +235,8 @@ O CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) roda a cada Pull R
 
 Um único **web service** Python no Render (plano free) roda o FastAPI, que serve **a API e o front no mesmo domínio**:
 
-- `/cliente/*`, `/gestao/*`, `/health`, `/health/db`, `/docs`, `/openapi.json`: API
+- `/api`, `/api/agendamentos/*`, `/cliente/*`, `/gestao/*`, `/health`, `/health/db`, `/docs`, `/openapi.json`: API
+- na subida, o servidor cria o arquivo do SQLite (`SQLITE_PATH`), as tabelas e os serviços iniciais se ainda não existirem; num banco existente nada é alterado
 - qualquer outro caminho: arquivos de `frontend/` com URL limpa (`/agenda` entrega `agenda.html`, `/agenda.html` redireciona com 301 para `/agenda` e `/` abre o `index.html`, que redireciona para `/cliente`)
 
 O front chama a API pela mesma origem da página, então não há CORS envolvido e `CORS_ORIGINS` não precisa ser configurada no Render.

@@ -142,3 +142,45 @@ class FiltroAgendamentosGestao(BaseModel):
         except ValueError:
             raise ValueError("Data deve estar no formato AAAA-MM-DD") from None
         return valor
+
+
+# --- API REST pública (/api/agendamentos) -----------------------------------
+
+
+class AgendamentoApiEntrada(DataHorarioEntrada):
+    """Corpo do POST /api/agendamentos."""
+
+    cliente_id: int = Field(gt=0, examples=[1])
+    servico_id: int = Field(gt=0, examples=[2])
+
+
+class AgendamentoApiAtualizacao(AgendamentoApiEntrada):
+    """Corpo do PUT /api/agendamentos/{id}: substitui o agendamento inteiro."""
+
+    status: StatusAgendamento = Field(examples=["confirmado"])
+
+
+class AgendamentoApiSaida(BaseModel):
+    """Um agendamento como dicionário simples (sem objetos aninhados)."""
+
+    id: int
+    cliente_id: int
+    nome_cliente: str
+    telefone_cliente: str | None
+    carro: str | None
+    marca: str | None
+    placa: str | None
+    servico_id: int
+    servico: str
+    data: str
+    horario: str
+    status: str
+    preco: float | None
+    duracao_min: int | None
+    criado_em: str | None
+    atualizado_em: str | None
+
+
+class AgendamentoApagado(BaseModel):
+    mensagem: str
+    agendamento: AgendamentoApiSaida
