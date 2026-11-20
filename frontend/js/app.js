@@ -1,7 +1,6 @@
 import { initAuthPage } from "./features/auth/auth-page.js";
 import { getPostAuthDestination } from "./features/auth/auth-navigation.js";
 import { getSession, signOut } from "./features/auth/auth-repository.js";
-import { initClientPage } from "./features/requests/client-page.js";
 import { initCustomerPage } from "./features/customer/customer-page.js";
 import { initRequestsDashboard } from "./features/requests/dashboard-page.js";
 import { initOrdersPage } from "./features/requests/orders-page.js";
@@ -17,11 +16,9 @@ if (page === "auth") {
   } else {
     initAuthPage();
   }
-} else if (page === "client") {
-  initClientPage();
 } else if (page === "customer-area") {
   if (!getSession()) {
-    window.location.replace("auth.html?next=cliente.html");
+    window.location.replace("auth?next=cliente");
   } else {
     initCustomerPage();
   }
@@ -29,7 +26,7 @@ if (page === "auth") {
   // Todas as páginas de gestão compartilham a sessão de demonstração existente.
   const session = getSession();
   if (!session) {
-    window.location.replace("auth.html");
+    window.location.replace("auth");
   } else {
     const header = document.querySelector(".topo");
     if (header) {
@@ -40,7 +37,7 @@ if (page === "auth") {
       account.querySelector(".sessao-nome").textContent = session.user.name;
       account.querySelector(".sessao-sair").addEventListener("click", () => {
         signOut();
-        window.location.replace("auth.html");
+        window.location.replace("auth");
       });
       header.append(account);
     }

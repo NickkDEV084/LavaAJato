@@ -121,6 +121,43 @@ function byDateTime(left, right) {
   return `${left.date}T${left.time}`.localeCompare(`${right.date}T${right.time}`);
 }
 
+// --- API REST pública (/api/agendamentos) -------------------------------------
+// Leitura aberta (sem chave), usada pelo Painel e pelos Pedidos da gestão.
+
+export const APPOINTMENT_STATUS_LABELS = {
+  agendado: "Agendado",
+  confirmado: "Confirmado",
+  "pronto-retirada": "Pronto para retirada",
+  concluido: "Concluído",
+  cancelado: "Cancelado",
+};
+
+function appointmentFromRestApi(item) {
+  return {
+    id: item.id,
+    customerId: item.cliente_id,
+    customerName: item.nome_cliente || "",
+    customerPhone: item.telefone_cliente || "",
+    car: item.carro || "",
+    brand: item.marca || "",
+    plate: item.placa || "",
+    serviceId: item.servico_id,
+    serviceName: item.servico,
+    servicePrice: Number(item.preco) || 0,
+    serviceDuration: Number(item.duracao_min) || 0,
+    date: item.data,
+    time: item.horario,
+    status: item.status,
+    createdAt: item.criado_em,
+    updatedAt: item.atualizado_em,
+  };
+}
+
+export async function listAllAppointments() {
+  const agendamentos = await sendRequest("/api/agendamentos");
+  return agendamentos.map(appointmentFromRestApi).sort(byDateTime);
+}
+
 // --- Área do cliente (API) ----------------------------------------------------
 
 export async function getCustomerProfile() {

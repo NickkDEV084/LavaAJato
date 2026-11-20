@@ -1,6 +1,7 @@
 """Conexão sqlite3 com o banco da área do cliente (lavaajato.db).
 
-O schema pertence ao banco existente: este módulo NUNCA cria ou altera tabelas.
+Este módulo NUNCA cria ou altera tabelas: isso é feito uma vez, na subida do
+servidor, por banco.inicializar_banco().
 """
 
 import sqlite3

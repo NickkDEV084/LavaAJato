@@ -283,12 +283,13 @@ export function initCustomerPage() {
         });
         bookingForm.reset();
         bookingForm.elements.date.min = localDateValue();
-        showNotice("Agendamento criado.", "success");
+        showNotice("Agendamento criado com sucesso! Ele já aparece em \"Meus agendamentos\".", "success");
         await renderAppointments();
-        document.querySelector("#appointments").scrollIntoView({ behavior: "smooth", block: "start" });
       } catch (error) {
         showNotice(error.message || "Não foi possível criar o agendamento.");
       }
+      // A mensagem fica no topo da página, longe do formulário: rola até ela.
+      notice.scrollIntoView({ behavior: "smooth", block: "center" });
     });
   });
 
@@ -317,7 +318,7 @@ export function initCustomerPage() {
 
   document.querySelector("#customer-sign-out").addEventListener("click", () => {
     signOut();
-    window.location.replace("auth.html?next=cliente.html");
+    window.location.replace("auth?next=cliente");
   });
 
   Promise.allSettled([loadProfile(), renderServices(), renderAppointments()]).then((results) => {

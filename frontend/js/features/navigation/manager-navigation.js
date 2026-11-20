@@ -1,13 +1,13 @@
 // As mesmas seções alimentam o menu móvel e a indicação da página atual.
 const sections = [
-  { page: "dashboard", href: "gestao.html", label: "Painel", icon: "dashboard" },
-  { page: "services", href: "servicos.html", label: "Serviços e preços", icon: "services" },
-  { page: "schedule", href: "agenda.html", label: "Agenda e fila", icon: "calendar" },
-  { page: "orders", href: "pedidos.html", label: "Pedidos e pagamentos", icon: "orders" },
-  { page: "inventory", href: "produtos.html", label: "Produtos e estoque", icon: "inventory" },
-  { page: "service-status", href: "status.html", label: "Status do serviço", icon: "status" },
-  { page: "cancellations", href: "cancelamentos.html", label: "Cancelamentos", icon: "cancel" },
-  { page: "reports", href: "relatorios.html", label: "Relatórios", icon: "reports" },
+  { page: "dashboard", href: "gestao", label: "Painel", icon: "dashboard" },
+  { page: "services", href: "servicos", label: "Serviços e preços", icon: "services" },
+  { page: "schedule", href: "agenda", label: "Agenda e fila", icon: "calendar" },
+  { page: "orders", href: "pedidos", label: "Pedidos e pagamentos", icon: "orders" },
+  { page: "inventory", href: "produtos", label: "Produtos e estoque", icon: "inventory" },
+  { page: "service-status", href: "status", label: "Status do serviço", icon: "status" },
+  { page: "cancellations", href: "cancelamentos", label: "Cancelamentos", icon: "cancel" },
+  { page: "reports", href: "relatorios", label: "Relatórios", icon: "reports" },
 ];
 
 const quickSectionPages = new Set(["dashboard", "schedule", "orders", "reports"]);
@@ -78,7 +78,7 @@ export function initManagerNavigation(currentPage) {
   sections.forEach((section) => sectionList.append(createSectionLink(section, currentPage)));
   panel.append(sectionList);
   panel.append(createSectionLink(
-    { href: "index.html", label: "Área do cliente", icon: "client" },
+    { href: "./", label: "Área do cliente", icon: "client" },
     currentPage,
     "manager-client-link",
   ));
