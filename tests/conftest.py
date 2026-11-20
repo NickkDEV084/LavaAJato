@@ -16,6 +16,10 @@ os.environ.setdefault("CORS_ORIGINS", "http://localhost:5500")
 # A subida do app (lifespan) cria o banco de SQLITE_PATH se não existir: nos testes
 # ele vai para uma pasta temporária, nunca para o lavaajato.db real.
 os.environ["SQLITE_PATH"] = str(Path(tempfile.mkdtemp(prefix="lavaajato-testes-")) / "lavaajato.db")
+# Nenhum teste fala com o Turso: vazias no ambiente, elas vencem os valores do .env
+# local, e a API usa o SQLite temporário acima.
+os.environ["TURSO_DATABASE_URL"] = ""
+os.environ["TURSO_AUTH_TOKEN"] = ""
 
 import sqlite3  # noqa: E402
 

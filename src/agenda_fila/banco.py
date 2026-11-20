@@ -1,17 +1,21 @@
-"""Criação do banco SQLite na subida do servidor.
+"""Criação das tabelas na subida do servidor, no Turso ou no arquivo SQLite.
 
-Se o arquivo de SQLITE_PATH (ou a pasta dele) não existir, é criado. As tabelas e
-índices usam CREATE ... IF NOT EXISTS: num banco que já existe nada é alterado.
-Os serviços iniciais só são inseridos quando a tabela servicos está vazia.
+Com o Turso configurado (TURSO_DATABASE_URL e TURSO_AUTH_TOKEN), as tabelas são
+criadas no banco do Turso. Sem ele, no arquivo de SQLITE_PATH, que é criado (com a
+pasta) se não existir. Nos dois casos as tabelas e índices usam
+CREATE ... IF NOT EXISTS: num banco que já existe nada é alterado nem apagado. Os
+serviços iniciais só são inseridos quando a tabela servicos está vazia, então não
+duplicam.
 
-Necessário no Render (plano free): o disco é efêmero e o banco pode sumir a cada
-reinício ou deploy.
+No Render (plano free) o disco é efêmero: sem o Turso, o arquivo pode sumir a cada
+reinício ou deploy. Com o Turso, os dados ficam na nuvem e sobrevivem a isso.
 """
 
 import logging
 import sqlite3
 from pathlib import Path
 
+from src.agenda_fila.conexao import Conexao, abrir_conexao_turso
 from src.compartilhado.config import settings
 
 logger = logging.getLogger(__name__)
@@ -66,21 +70,34 @@ SERVICOS_INICIAIS = [
 
 
 def inicializar_banco(caminho: Path | None = None) -> None:
-    """Garante que o arquivo, as tabelas e os serviços iniciais existam."""
-    alvo = caminho or settings.SQLITE_PATH
-    alvo.parent.mkdir(parents=True, exist_ok=True)
-    conexao = sqlite3.connect(alvo)
+    """Garante que as tabelas e os serviços iniciais existam.
+
+    Sem `caminho`, usa o Turso se estiver configurado; senão, o arquivo SQLITE_PATH.
+    Com `caminho`, usa sempre esse arquivo SQLite local (é o que os testes fazem).
+    """
+    conexao: Conexao
+    if caminho is None and settings.usa_turso:
+        logger.info("Banco: Turso (remoto)")
+        conexao = abrir_conexao_turso()
+    else:
+        alvo = caminho or settings.SQLITE_PATH
+        logger.info("Banco: SQLite local (%s)", alvo)
+        alvo.parent.mkdir(parents=True, exist_ok=True)
+        conexao = sqlite3.connect(alvo)
     try:
-        with conexao:
-            for comando in DDL:
-                conexao.execute(comando)
-            (total,) = conexao.execute("SELECT COUNT(*) FROM servicos").fetchone()
-            if total == 0:
-                conexao.executemany(
-                    "INSERT INTO servicos (nome, preco, duracao_min, descricao) "
-                    "VALUES (?, ?, ?, ?)",
-                    SERVICOS_INICIAIS,
-                )
-                logger.info("Banco novo: %d serviços iniciais inseridos", len(SERVICOS_INICIAIS))
+        _criar_tabelas_e_servicos(conexao)
     finally:
         conexao.close()
+
+
+def _criar_tabelas_e_servicos(conexao: Conexao) -> None:
+    with conexao:
+        for comando in DDL:
+            conexao.execute(comando)
+        (total,) = conexao.execute("SELECT COUNT(*) FROM servicos").fetchone()
+        if total == 0:
+            conexao.executemany(
+                "INSERT INTO servicos (nome, preco, duracao_min, descricao) VALUES (?, ?, ?, ?)",
+                SERVICOS_INICIAIS,
+            )
+            logger.info("Banco novo: %d serviços iniciais inseridos", len(SERVICOS_INICIAIS))

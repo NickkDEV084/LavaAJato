@@ -78,20 +78,20 @@ Qualquer outra mudança de status é recusada pela API com `409`.
 ## Tecnologias
 
 - **Back-end:** Python 3.12+, [FastAPI](https://fastapi.tiangolo.com/), Pydantic / pydantic-settings (validação e configuração via `.env`), Uvicorn.
-- **Banco de dados:** SQLite (arquivo `lavaajato.db`, acessado com o módulo `sqlite3` da biblioteca padrão).
+- **Banco de dados:** SQLite. Localmente, o arquivo `lavaajato.db` (módulo `sqlite3` da biblioteca padrão). Em produção, o [Turso](https://turso.tech/) (SQLite na nuvem), acessado pelo driver oficial [`turso-serverless`](https://docs.turso.tech/sdk/python/quickstart) (Python puro, via HTTP). Ver [Banco: SQLite local ou Turso](#banco-sqlite-local-ou-turso).
 - **Front-end:** HTML, CSS e JavaScript nativo (módulos ES), sem framework e sem etapa de build.
 - **Ferramentas:** [uv](https://docs.astral.sh/uv/) (dependências e ambiente), pytest + httpx (testes), Ruff (lint e formatação).
 - **Infraestrutura:** GitHub Actions (CI) e Render (hospedagem).
 
 ## Arquitetura
 
-Um único serviço FastAPI faz as duas coisas: atende a API (`/cliente/*`, `/gestao/*`, `/health*`, `/docs`) e serve os arquivos estáticos de `frontend/` em todos os outros caminhos. Como front e API ficam na mesma origem, não há CORS em produção. As regras de negócio ficam separadas das rotas e do acesso ao banco, e o SQLite é o único banco do projeto.
+Um único serviço FastAPI faz as duas coisas: atende a API (`/cliente/*`, `/gestao/*`, `/health*`, `/docs`) e serve os arquivos estáticos de `frontend/` em todos os outros caminhos. Como front e API ficam na mesma origem, não há CORS em produção. As regras de negócio ficam separadas das rotas e do acesso ao banco, e o SQLite é o único banco do projeto (em arquivo local ou no Turso).
 
 ```
 LavaAJato/
 ├── src/
 │   ├── main.py              # cria o app FastAPI, health checks e serve o frontend/
-│   ├── agenda_fila/         # rotas, regras, esquemas e acesso ao SQLite (cliente e gestão)
+│   ├── agenda_fila/         # rotas, regras, esquemas e acesso ao banco (SQLite local ou Turso)
 │   └── compartilhado/       # configuração (.env) e tratamento de erros
 ├── frontend/                # páginas HTML, css/ e js/ (sem build)
 ├── tests/                   # testes da API, health checks e frontend
@@ -187,7 +187,9 @@ Depois revise as variáveis no `.env`:
 |---|---|---|
 | `SECRET_KEY` | Chave secreta da aplicação. Obrigatória: sem ela a API não sobe. Troque o valor de exemplo por uma chave gerada | `troque-por-uma-chave-aleatoria` |
 | `GESTAO_CHAVE` | Chave da agenda da gestão, enviada pelo front no header `X-Chave-Gestao`. Vazia, as rotas `/gestao/*` respondem `503` | (vazia) |
-| `SQLITE_PATH` | Caminho do banco SQLite. Caminho relativo é resolvido a partir da raiz do projeto | `lavaajato.db` |
+| `SQLITE_PATH` | Caminho do banco SQLite. Caminho relativo é resolvido a partir da raiz do projeto. Ignorada quando o Turso está configurado | `lavaajato.db` |
+| `TURSO_DATABASE_URL` | URL do banco no Turso (`libsql://...`). Com ela e o token preenchidos, a API usa o Turso no lugar do arquivo | (vazia) |
+| `TURSO_AUTH_TOKEN` | Token de acesso do banco no Turso. Segredo: só no `.env` e no painel do Render | (vazia) |
 | `TIMEZONE` | Fuso (nome IANA) das regras de horário dos agendamentos, independente do fuso do servidor | `America/Recife` |
 | `CORS_ORIGINS` | Origens que podem chamar a API, separadas por vírgula. Só é necessária se o front for servido em outra origem; com o uvicorn, front e API ficam na mesma origem e ela pode ficar vazia | `http://localhost:5500,http://127.0.0.1:5500` |
 
@@ -198,6 +200,22 @@ uv run python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
 O `.env` não vai para o Git. Os testes não dependem dele.
+
+### Banco: SQLite local ou Turso
+
+A regra fica em [`src/agenda_fila/conexao.py`](src/agenda_fila/conexao.py):
+
+- **`TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN` preenchidas:** a API usa o banco do Turso. Os dados ficam na nuvem e sobrevivem a reinícios e deploys.
+- **Qualquer uma vazia ou ausente:** a API usa o arquivo de `SQLITE_PATH`, como sempre.
+
+Nos dois modos o código é o mesmo (SQL com `?`, mesmas tabelas). Na subida, o servidor cria as tabelas (`CREATE ... IF NOT EXISTS`) e insere os 3 serviços iniciais só se a tabela `servicos` estiver vazia. Num banco que já tem dados, nada é apagado nem duplicado. Cada requisição abre e fecha a própria conexão.
+
+Para usar o Turso localmente, copie a URL e um token do banco no painel do Turso (ou com `turso db show <banco> --url` e `turso db tokens create <banco>`) para o `.env`. Copie a URL inteira, como o Turso mostra: ela costuma incluir a região (ex.: `libsql://banco-org.aws-us-east-1.turso.io`). Se a URL estiver errada, o Turso responde `404 Host not found` e o `/health/db` dá `503`.
+
+Limitações do modo Turso:
+
+- **Latência:** cada comando SQL é uma requisição HTTP ao Turso, então cada chamada da API leva algumas dezenas de milissegundos a mais que no arquivo local. Crie o banco no Turso perto do Render (o serviço está na região `virginia`, leste dos EUA: use `aws-us-east-1`).
+- **Sem timeout configurável:** o driver `turso-serverless` não permite definir um tempo limite nas chamadas HTTP. Se o Turso parar de responder sem fechar a conexão, a requisição fica esperando até o sistema operacional desistir. A única forma de limitar isso seria mexer no timeout global de sockets do Python ou em partes internas do driver, e o projeto não faz isso.
 
 ### 3. Subir a API e o front
 
@@ -219,7 +237,7 @@ Esta é a forma oficial de rodar o projeto localmente. As páginas abrem sem o `
 
 ## Testes e qualidade
 
-Os testes usam um SQLite temporário com o mesmo schema do `lavaajato.db` (nunca alteram o arquivo real) e definem as próprias variáveis de ambiente, então não precisam do `.env`. Hoje são 242 testes.
+Os testes usam um SQLite temporário com o mesmo schema do `lavaajato.db` (nunca alteram o arquivo real) e definem as próprias variáveis de ambiente, então não precisam do `.env`. Eles nunca falam com o Turso: o `tests/conftest.py` zera `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN`, e o modo Turso é testado com um driver falso (`tests/agenda_fila/test_conexao_turso.py`). Hoje são 261 testes.
 
 ```cmd
 uv run pytest
@@ -236,7 +254,7 @@ O CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) roda a cada Pull R
 Um único **web service** Python no Render (plano free) roda o FastAPI, que serve **a API e o front no mesmo domínio**:
 
 - `/api`, `/api/agendamentos/*`, `/cliente/*`, `/gestao/*`, `/health`, `/health/db`, `/docs`, `/openapi.json`: API
-- na subida, o servidor cria o arquivo do SQLite (`SQLITE_PATH`), as tabelas e os serviços iniciais se ainda não existirem; num banco existente nada é alterado
+- banco: o Turso (`TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN`), para os dados não sumirem; na subida, o servidor cria as tabelas e os serviços iniciais se ainda não existirem, e num banco existente nada é alterado
 - qualquer outro caminho: arquivos de `frontend/` com URL limpa (`/agenda` entrega `agenda.html`, `/agenda.html` redireciona com 301 para `/agenda` e `/` abre o `index.html`, que redireciona para `/cliente`)
 
 O front chama a API pela mesma origem da página, então não há CORS envolvido e `CORS_ORIGINS` não precisa ser configurada no Render.
@@ -253,13 +271,14 @@ A configuração fica no [`render.yaml`](render.yaml) (Blueprint), na raiz:
 1. No painel do Render: **New → Blueprint** e escolha este repositório (branch `Principal!`).
 2. O Render lê o `render.yaml` e pede os valores marcados com `sync: false`:
    - **`GESTAO_CHAVE`**: chave da agenda da gestão. Gere uma com o comando da seção [Criar o `.env`](#2-criar-o-env). Sem ela, as rotas `/gestao/*` respondem `503`.
+   - **`TURSO_DATABASE_URL`** e **`TURSO_AUTH_TOKEN`**: URL e token do banco no Turso (ver [Banco: SQLite local ou Turso](#banco-sqlite-local-ou-turso)). Sem elas, o serviço usa o arquivo SQLite no disco efêmero.
 3. Confirme. A `SECRET_KEY` é gerada automaticamente pelo Render; `SQLITE_PATH`, `TIMEZONE` e `PYTHON_VERSION` já vêm do arquivo.
 
-O Render só pede os valores `sync: false` na **criação** do Blueprint. Para trocar a `GESTAO_CHAVE` depois, use **Environment** no painel do serviço. A cada push na `Principal!`, o Render faz um novo deploy.
+O Render só pede os valores `sync: false` na **criação** do Blueprint. **No serviço que já existe**, adicione `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN` em **Environment** no painel do serviço (o mesmo vale para trocar a `GESTAO_CHAVE`). A cada push na `Principal!`, o Render faz um novo deploy.
 
 ### Avisos do plano free
 
-- **O banco volta ao original a cada reinício ou deploy.** O disco é efêmero: tudo que for gravado no `lavaajato.db` em produção (perfis, agendamentos) se perde quando o serviço reinicia, dorme ou recebe deploy, e ele volta ao `lavaajato.db` versionado no repositório. Para uma demonstração isso é aceitável.
+- **O disco é efêmero.** Tudo que for gravado em arquivo no Render se perde quando o serviço reinicia, dorme ou recebe deploy. Por isso o banco de produção fica no Turso. Sem `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN` no painel, o serviço volta a usar o `lavaajato.db` do disco, e os perfis e agendamentos somem a cada reinício.
 - **A primeira visita pode demorar cerca de 1 minuto.** Depois de 15 minutos sem acessos o Render "adormece" o serviço; a próxima requisição o acorda.
 
 ## Como o Git funciona aqui
@@ -291,7 +310,7 @@ feature/*  ->  develop  ->  Principal!
 - **`servicos.html` ainda usa o `localStorage`.** O cadastro de serviços da gestão não está ligado à API; a área do cliente e a agenda leem os serviços do banco.
 - **Painel (`gestao.html`) e `pedidos.html` estão no fluxo antigo.** Ainda trabalham com dados do `localStorage`, não com os agendamentos da API. As outras telas da gestão (clientes, produtos, status, cancelamentos, avaliações, relatórios) são protótipos visuais.
 - **O veículo vem do perfil atual.** O agendamento não guarda uma cópia do veículo: se o cliente muda carro ou placa no perfil, os agendamentos antigos passam a mostrar os dados novos.
-- **Banco efêmero no plano free.** Os dados gravados em produção se perdem a cada reinício ou deploy (ver [Avisos do plano free](#avisos-do-plano-free)).
+- **Turso sem timeout e com latência de rede.** O driver não tem tempo limite configurável e cada comando SQL é uma requisição HTTP (ver [Banco: SQLite local ou Turso](#banco-sqlite-local-ou-turso)).
 - **Módulos planejados sem código.** Pedidos e pagamentos, estoque, avaliações e relatórios ainda estão só no planejamento (`src/*/README.md`). Escopo completo em [docs/escopo.pdf](docs/escopo.pdf), com [requisitos](docs/requisitos.md) e [regras de negócio](docs/regras-de-negocio.md).
 
 ## Equipe
