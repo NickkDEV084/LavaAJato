@@ -1,7 +1,8 @@
 # Blueprint do Render: um único web service com a API (FastAPI) e o front estático.
 # Spec: https://render.com/docs/blueprint-spec
-# Nenhum segredo fica aqui: SECRET_KEY é gerada pelo Render e GESTAO_CHAVE é
-# preenchida no painel na criação do Blueprint.
+# Nenhum segredo fica aqui: SECRET_KEY é gerada pelo Render; GESTAO_CHAVE,
+# TURSO_DATABASE_URL e TURSO_AUTH_TOKEN são preenchidas no painel.
+# Região virginia (leste dos EUA): crie o banco do Turso perto (aws-us-east-1).
 services:
   - type: web
     name: lavaajato
@@ -19,6 +20,11 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: GESTAO_CHAVE
+        sync: false
+      # Banco no Turso (dados persistem). Sem as duas, usa o SQLITE_PATH (disco efêmero).
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
         sync: false
       - key: SQLITE_PATH
         value: lavaajato.db
