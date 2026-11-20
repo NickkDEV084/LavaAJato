@@ -317,7 +317,7 @@ export function initCustomerPage() {
 
   document.querySelector("#customer-sign-out").addEventListener("click", () => {
     signOut();
-    window.location.replace("auth.html?next=cliente.html");
+    window.location.replace("auth?next=cliente");
   });
 
   Promise.allSettled([loadProfile(), renderServices(), renderAppointments()]).then((results) => {
