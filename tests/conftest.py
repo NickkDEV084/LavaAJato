@@ -6,14 +6,18 @@ testes não dependem do .env local.
 """
 
 import os
+import tempfile
+from pathlib import Path
 
 # Precisa vir antes de importar src.*: as Settings são lidas na importação.
 # setdefault mantém valores que já existam no ambiente (ex.: CI).
 os.environ.setdefault("SECRET_KEY", "chave-de-teste")
 os.environ.setdefault("CORS_ORIGINS", "http://localhost:5500")
+# A subida do app (lifespan) cria o banco de SQLITE_PATH se não existir: nos testes
+# ele vai para uma pasta temporária, nunca para o lavaajato.db real.
+os.environ["SQLITE_PATH"] = str(Path(tempfile.mkdtemp(prefix="lavaajato-testes-")) / "lavaajato.db")
 
 import sqlite3  # noqa: E402
-from pathlib import Path  # noqa: E402
 
 import pytest  # noqa: E402
 
