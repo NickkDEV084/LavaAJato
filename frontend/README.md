@@ -1,8 +1,16 @@
 # LavaAjato — frontend
 
-Frontend em HTML, CSS e JavaScript nativo, sem dependências de build. Para abrir as páginas, sirva a pasta `frontend` com o Live Server ou execute `python -m http.server 5500` na raiz e acesse `http://localhost:5500/frontend/`. Os módulos JavaScript precisam ser servidos por HTTP.
+Frontend em HTML, CSS e JavaScript nativo, sem dependências de build. As páginas são servidas pelo próprio FastAPI, na raiz do projeto:
+
+```cmd
+uv run uvicorn src.main:app --reload
+```
+
+Depois acesse http://127.0.0.1:8000/. As URLs não levam `.html` (`/agenda` entrega `agenda.html`, e `/agenda.html` redireciona com 301 para `/agenda`), então os links internos usam sempre o nome sem extensão. Outros servidores estáticos (Live Server, `python -m http.server`) não fazem essa conversão e não servem para rodar o front.
 
 ## Páginas
+
+Cada arquivo abre pela URL sem extensão (`cliente.html` em `/cliente`).
 
 - `index.html`: encaminha para a área do cliente.
 - `cliente.html`: área autenticada do cliente, perfil e CRUD de agendamentos.
@@ -23,7 +31,7 @@ As telas administrativas e seus estilos vieram do pacote `LavaAjato-frontend.zip
 
 Em telas pequenas, a barra inferior mantém Painel, Agenda, Pedidos e Relatórios a um toque. O botão Menu abre as demais seções; o menu e os links laterais do desktop usam os mesmos destinos.
 
-O acesso à raiz do site abre a área do cliente. O link `Login Gestão` encaminha para o painel administrativo. Ambos reaproveitam `auth.html`; a autenticação sem destino encaminha para a Gestão e o cadastro da área do cliente retorna para `cliente.html`.
+O acesso à raiz do site abre a área do cliente. O link `Login Gestão` encaminha para o painel administrativo. Ambos reaproveitam `/auth`; a autenticação sem destino encaminha para `/gestao` e o cadastro da área do cliente (`/auth?next=cliente`) retorna para `/cliente`. O formato antigo `next=cliente.html` continua aceito.
 
 O serviço `js/features/customer/customer-service.js` guarda o perfil junto ao cadastro existente e os agendamentos em `localStorage`. Cada agendamento recebe `customerId`; a listagem e as ações filtram por esse ID. Remarcação altera data e horário, e cancelamento preserva o registro com status `cancelado`.
 

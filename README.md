@@ -10,11 +10,11 @@ O sistema está publicado em **https://lavaajato.onrender.com**.
 
 | Caminho | O que é |
 |---|---|
-| [`/`](https://lavaajato.onrender.com/) | Área do cliente (abre a `cliente.html`) |
-| [`/agenda.html`](https://lavaajato.onrender.com/agenda.html) | Agenda da gestão |
+| [`/`](https://lavaajato.onrender.com/) | Área do cliente (abre a `/cliente`) |
+| [`/agenda`](https://lavaajato.onrender.com/agenda) | Agenda da gestão |
 | [`/docs`](https://lavaajato.onrender.com/docs) | Documentação interativa da API (Swagger) |
 
-- **A agenda da gestão pede uma chave de acesso.** Ela é configurada no servidor e **não é pública**; quem não tem a chave consegue usar a área do cliente e a documentação da API normalmente. Antes da chave, a página pede o acesso de demonstração (`auth.html`), como as demais telas da gestão.
+- **A agenda da gestão pede uma chave de acesso.** Ela é configurada no servidor e **não é pública**; quem não tem a chave consegue usar a área do cliente e a documentação da API normalmente. Antes da chave, a página pede o acesso de demonstração (`/auth`), como as demais telas da gestão.
 - **A primeira visita pode levar cerca de 1 minuto.** O serviço está no plano free do Render, que "adormece" depois de um tempo sem acessos.
 - **Os dados de teste são reiniciados periodicamente.** O disco do plano free é efêmero: perfis e agendamentos criados na demonstração se perdem quando o serviço reinicia.
 
@@ -173,7 +173,7 @@ Depois revise as variáveis no `.env`:
 | `GESTAO_CHAVE` | Chave da agenda da gestão, enviada pelo front no header `X-Chave-Gestao`. Vazia, as rotas `/gestao/*` respondem `503` | (vazia) |
 | `SQLITE_PATH` | Caminho do banco SQLite. Caminho relativo é resolvido a partir da raiz do projeto | `lavaajato.db` |
 | `TIMEZONE` | Fuso (nome IANA) das regras de horário dos agendamentos, independente do fuso do servidor | `America/Recife` |
-| `CORS_ORIGINS` | Origens que podem chamar a API, separadas por vírgula. Só é necessária no modo de dev do front (porta 5500) | `http://localhost:5500,http://127.0.0.1:5500` |
+| `CORS_ORIGINS` | Origens que podem chamar a API, separadas por vírgula. Só é necessária se o front for servido em outra origem; com o uvicorn, front e API ficam na mesma origem e ela pode ficar vazia | `http://localhost:5500,http://127.0.0.1:5500` |
 
 Para gerar valores para `SECRET_KEY` e `GESTAO_CHAVE` (rode uma vez para cada):
 
@@ -192,24 +192,18 @@ uv run uvicorn src.main:app --reload
 Abra http://127.0.0.1:8000/. O mesmo servidor atende o front e a API:
 
 - http://127.0.0.1:8000/: área do cliente
-- http://127.0.0.1:8000/agenda.html: agenda da gestão (use a `GESTAO_CHAVE` do seu `.env`)
+- http://127.0.0.1:8000/cliente: área do cliente (direto)
+- http://127.0.0.1:8000/agenda: agenda da gestão (use a `GESTAO_CHAVE` do seu `.env`)
 - http://127.0.0.1:8000/docs: documentação da API
 - http://127.0.0.1:8000/health/db: checagem do banco
 
-### Modo de dev do front (porta 5500)
+Esta é a forma oficial de rodar o projeto localmente. As páginas abrem sem o `.html` no final (`/agenda` entrega `agenda.html`), e os links antigos com `.html` redirecionam (301) para a URL limpa. Por isso, abrir o `frontend/` com outro servidor estático (Live Server, `http.server`) não funciona: os links internos dariam 404.
 
-Também dá para servir o `frontend/` à parte (por exemplo, com o Live Server do VS Code ou com o servidor do Python), mantendo a API rodando no terminal anterior:
-
-```cmd
-cd frontend
-python -m http.server 5500
-```
-
-Abra http://127.0.0.1:5500/cliente.html. Quando a página está na porta 5500, o `frontend/js/core/config.js` chama a API em `http://127.0.0.1:8000`; em qualquer outra porta, usa a mesma origem da página. Nesse modo, a `CORS_ORIGINS` do `.env` precisa incluir a origem do front.
+`/cliente` e `/gestao` são páginas do front e têm o mesmo nome dos prefixos da API (`/cliente/*`, `/gestao/*`). Não crie rotas da API exatamente em `/cliente` ou `/gestao`; os testes de `tests/test_frontend.py` quebram se isso acontecer.
 
 ## Testes e qualidade
 
-Os testes usam um SQLite temporário com o mesmo schema do `lavaajato.db` (nunca alteram o arquivo real) e definem as próprias variáveis de ambiente, então não precisam do `.env`. Hoje são 205 testes.
+Os testes usam um SQLite temporário com o mesmo schema do `lavaajato.db` (nunca alteram o arquivo real) e definem as próprias variáveis de ambiente, então não precisam do `.env`. Hoje são 225 testes.
 
 ```cmd
 uv run pytest
@@ -226,9 +220,9 @@ O CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) roda a cada Pull R
 Um único **web service** Python no Render (plano free) roda o FastAPI, que serve **a API e o front no mesmo domínio**:
 
 - `/cliente/*`, `/gestao/*`, `/health`, `/health/db`, `/docs`, `/openapi.json`: API
-- qualquer outro caminho: arquivos de `frontend/` (`/` abre o `index.html`, que redireciona para `cliente.html`)
+- qualquer outro caminho: arquivos de `frontend/` com URL limpa (`/agenda` entrega `agenda.html`, `/agenda.html` redireciona com 301 para `/agenda` e `/` abre o `index.html`, que redireciona para `/cliente`)
 
-Fora da porta 5500, o front chama a API pela mesma origem da página, então não há CORS envolvido e `CORS_ORIGINS` não precisa ser configurada no Render.
+O front chama a API pela mesma origem da página, então não há CORS envolvido e `CORS_ORIGINS` não precisa ser configurada no Render.
 
 A configuração fica no [`render.yaml`](render.yaml) (Blueprint), na raiz:
 

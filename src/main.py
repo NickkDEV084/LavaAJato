@@ -11,13 +11,13 @@ import sqlite3
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 
 from src.agenda_fila.conexao import abrir_conexao
 from src.agenda_fila.rotas import router as rotas_area_cliente
 from src.agenda_fila.rotas_gestao import router as rotas_gestao
 from src.compartilhado.config import RAIZ_PROJETO, settings
 from src.compartilhado.erros import registrar_tratadores_de_erro
+from src.compartilhado.estaticos import FrontendSemExtensao
 
 logger = logging.getLogger(__name__)
 
@@ -85,5 +85,8 @@ def health_db() -> JSONResponse:
 # Front estático: TEM que ser montado por último. O mount em "/" casa com qualquer
 # caminho, então as rotas da API (/cliente, /gestao, /health, /docs, /openapi.json)
 # precisam estar registradas antes para terem prioridade. html=True faz "/" servir
-# o index.html (que redireciona para cliente.html).
-app.mount("/", StaticFiles(directory=PASTA_FRONTEND, html=True), name="frontend")
+# o index.html (que redireciona para /cliente). FrontendSemExtensao entrega /agenda
+# como agenda.html e redireciona (301) /agenda.html para /agenda.
+# Atenção: /cliente e /gestao são páginas do front; não crie rotas da API exatamente
+# nesses caminhos (os testes de tests/test_frontend.py protegem isso).
+app.mount("/", FrontendSemExtensao(directory=PASTA_FRONTEND, html=True), name="frontend")

@@ -21,7 +21,7 @@ if (page === "auth") {
   initClientPage();
 } else if (page === "customer-area") {
   if (!getSession()) {
-    window.location.replace("auth.html?next=cliente.html");
+    window.location.replace("auth?next=cliente");
   } else {
     initCustomerPage();
   }
@@ -29,7 +29,7 @@ if (page === "auth") {
   // Todas as páginas de gestão compartilham a sessão de demonstração existente.
   const session = getSession();
   if (!session) {
-    window.location.replace("auth.html");
+    window.location.replace("auth");
   } else {
     const header = document.querySelector(".topo");
     if (header) {
@@ -40,7 +40,7 @@ if (page === "auth") {
       account.querySelector(".sessao-nome").textContent = session.user.name;
       account.querySelector(".sessao-sair").addEventListener("click", () => {
         signOut();
-        window.location.replace("auth.html");
+        window.location.replace("auth");
       });
       header.append(account);
     }
