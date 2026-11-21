@@ -40,6 +40,17 @@ class Settings(BaseSettings):
     def _resolver_caminho_sqlite(cls, valor: Path) -> Path:
         return valor if valor.is_absolute() else RAIZ_PROJETO / valor
 
+    # Turso (SQLite na nuvem). Com as DUAS preenchidas, a API usa o Turso no lugar
+    # do arquivo SQLITE_PATH. Ex.: TURSO_DATABASE_URL=libsql://meu-banco.turso.io
+    TURSO_DATABASE_URL: str | None = None
+    TURSO_AUTH_TOKEN: SecretStr | None = None
+
+    @property
+    def usa_turso(self) -> bool:
+        return bool(self.TURSO_DATABASE_URL) and bool(
+            self.TURSO_AUTH_TOKEN and self.TURSO_AUTH_TOKEN.get_secret_value()
+        )
+
     # Fuso usado nas regras de horário (ex.: "data e hora futuras"), independente
     # do relógio/fuso do servidor. Nome IANA, ex.: America/Recife.
     TIMEZONE: str = "America/Recife"
