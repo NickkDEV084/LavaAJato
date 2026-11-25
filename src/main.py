@@ -1,10 +1,3 @@
-"""Ponto de entrada da API do LavaAjato.
-
-Rodar em desenvolvimento:  uv run uvicorn src.main:app --reload
-
-Além da API, serve o front estático (frontend/) na raiz "/", na mesma origem.
-"""
-
 import logging
 import sqlite3
 from collections.abc import AsyncIterator
