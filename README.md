@@ -16,7 +16,7 @@ O sistema está publicado em **https://lavaajato.onrender.com**.
 | [`/api`](https://lavaajato.onrender.com/api) | Índice das rotas da API, em JSON |
 | [`/api/agendamentos`](https://lavaajato.onrender.com/api/agendamentos) | Lista de agendamentos, em JSON |
 
-- **A agenda da gestão pede uma chave de acesso.** Ela é configurada no servidor e **não é pública**; quem não tem a chave consegue usar a área do cliente e a documentação da API normalmente. Antes da chave, a página pede o acesso de demonstração (`/auth`), como as demais telas da gestão.
+- **A área de gestão é aberta.** Por ser um projeto demonstrativo, a API da gestão não exige chave nem login no servidor: qualquer visitante pode ver e alterar os agendamentos, então não cadastre dados reais. A página só pede o acesso de demonstração (`/auth`), como as demais telas da gestão.
 - **A primeira visita pode levar cerca de 1 minuto.** O serviço está no plano free do Render, que "adormece" depois de um tempo sem acessos.
 - **Os dados de teste são reiniciados periodicamente.** O disco do plano free é efêmero: perfis e agendamentos criados na demonstração se perdem quando o serviço reinicia.
 
@@ -115,11 +115,11 @@ Recebe e devolve JSON. Cada agendamento sai como um dicionário simples: `id`, `
 |---|---|---|---|---|
 | GET | `/api/agendamentos` | aberto | (filtros opcionais `?data=AAAA-MM-DD&status=`) | 200 com a lista |
 | GET | `/api/agendamentos/{id}` | aberto | | 200, ou 404 |
-| POST | `/api/agendamentos` | `X-Chave-Gestao` | `{cliente_id, servico_id, data, horario}` | 201 com o criado |
-| PUT | `/api/agendamentos/{id}` | `X-Chave-Gestao` | `{cliente_id, servico_id, data, horario, status}` | 200 com o atualizado, ou 404 |
-| DELETE | `/api/agendamentos/{id}` | `X-Chave-Gestao` | | 200 com o apagado, ou 404 |
+| POST | `/api/agendamentos` | aberto | `{cliente_id, servico_id, data, horario}` | 201 com o criado |
+| PUT | `/api/agendamentos/{id}` | aberto | `{cliente_id, servico_id, data, horario, status}` | 200 com o atualizado, ou 404 |
+| DELETE | `/api/agendamentos/{id}` | aberto | | 200 com o apagado, ou 404 |
 
-Dados inválidos (JSON malformado, data fora de `AAAA-MM-DD`, horário fora de `HH:MM`, horário no passado, cliente ou serviço inexistente, status desconhecido) respondem **400** com `{"erro": {"codigo", "mensagem", "detalhes"}}`. Sem a chave, 401; com a chave errada, 403. Ao contrário do "cancelar" das áreas de cliente e gestão, o `DELETE` apaga a linha de verdade.
+Dados inválidos (JSON malformado, data fora de `AAAA-MM-DD`, horário fora de `HH:MM`, horário no passado, cliente ou serviço inexistente, status desconhecido) respondem **400** com `{"erro": {"codigo", "mensagem", "detalhes"}}`. Ao contrário do "cancelar" das áreas de cliente e gestão, o `DELETE` apaga a linha de verdade.
 
 ### Área do cliente: `/cliente/*`
 
@@ -139,7 +139,7 @@ Todas exigem o header `X-Usuario-Id` com o identificador do cliente; sem ele, `4
 
 ### Gestão: `/gestao/*`
 
-Todas exigem o header `X-Chave-Gestao` igual à `GESTAO_CHAVE` do servidor. Sem `GESTAO_CHAVE` configurada, `503`; sem o header, `401`; com a chave errada, `403`.
+Rotas abertas, sem chave nem autenticação, porque o projeto é demonstrativo.
 
 | Método | Rota | Descrição |
 |---|---|---|
@@ -186,14 +186,13 @@ Depois revise as variáveis no `.env`:
 | Variável | Para que serve | Valor do exemplo |
 |---|---|---|
 | `SECRET_KEY` | Chave secreta da aplicação. Obrigatória: sem ela a API não sobe. Troque o valor de exemplo por uma chave gerada | `troque-por-uma-chave-aleatoria` |
-| `GESTAO_CHAVE` | Chave da agenda da gestão, enviada pelo front no header `X-Chave-Gestao`. Vazia, as rotas `/gestao/*` respondem `503` | (vazia) |
 | `SQLITE_PATH` | Caminho do banco SQLite. Caminho relativo é resolvido a partir da raiz do projeto. Ignorada quando o Turso está configurado | `lavaajato.db` |
 | `TURSO_DATABASE_URL` | URL do banco no Turso (`libsql://...`). Com ela e o token preenchidos, a API usa o Turso no lugar do arquivo | (vazia) |
 | `TURSO_AUTH_TOKEN` | Token de acesso do banco no Turso. Segredo: só no `.env` e no painel do Render | (vazia) |
 | `TIMEZONE` | Fuso (nome IANA) das regras de horário dos agendamentos, independente do fuso do servidor | `America/Recife` |
 | `CORS_ORIGINS` | Origens que podem chamar a API, separadas por vírgula. Só é necessária se o front for servido em outra origem; com o uvicorn, front e API ficam na mesma origem e ela pode ficar vazia | `http://localhost:5500,http://127.0.0.1:5500` |
 
-Para gerar valores para `SECRET_KEY` e `GESTAO_CHAVE` (rode uma vez para cada):
+Para gerar um valor para `SECRET_KEY`:
 
 ```cmd
 uv run python -c "import secrets; print(secrets.token_urlsafe(32))"
@@ -227,7 +226,7 @@ Abra http://127.0.0.1:8000/. O mesmo servidor atende o front e a API:
 
 - http://127.0.0.1:8000/: área do cliente
 - http://127.0.0.1:8000/cliente: área do cliente (direto)
-- http://127.0.0.1:8000/agenda: agenda da gestão (use a `GESTAO_CHAVE` do seu `.env`)
+- http://127.0.0.1:8000/agenda: agenda da gestão
 - http://127.0.0.1:8000/docs: documentação da API
 - http://127.0.0.1:8000/health/db: checagem do banco
 
@@ -237,7 +236,7 @@ Esta é a forma oficial de rodar o projeto localmente. As páginas abrem sem o `
 
 ## Testes e qualidade
 
-Os testes usam um SQLite temporário com o mesmo schema do `lavaajato.db` (nunca alteram o arquivo real) e definem as próprias variáveis de ambiente, então não precisam do `.env`. Eles nunca falam com o Turso: o `tests/conftest.py` zera `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN`, e o modo Turso é testado com um driver falso (`tests/agenda_fila/test_conexao_turso.py`). Hoje são 261 testes.
+Os testes usam um SQLite temporário com o mesmo schema do `lavaajato.db` (nunca alteram o arquivo real) e definem as próprias variáveis de ambiente, então não precisam do `.env`. Eles nunca falam com o Turso: o `tests/conftest.py` zera `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN`, e o modo Turso é testado com um driver falso (`tests/agenda_fila/test_conexao_turso.py`). Hoje são 188 testes.
 
 ```cmd
 uv run pytest
@@ -270,11 +269,10 @@ A configuração fica no [`render.yaml`](render.yaml) (Blueprint), na raiz:
 
 1. No painel do Render: **New → Blueprint** e escolha este repositório (branch `Principal!`).
 2. O Render lê o `render.yaml` e pede os valores marcados com `sync: false`:
-   - **`GESTAO_CHAVE`**: chave da agenda da gestão. Gere uma com o comando da seção [Criar o `.env`](#2-criar-o-env). Sem ela, as rotas `/gestao/*` respondem `503`.
    - **`TURSO_DATABASE_URL`** e **`TURSO_AUTH_TOKEN`**: URL e token do banco no Turso (ver [Banco: SQLite local ou Turso](#banco-sqlite-local-ou-turso)). Sem elas, o serviço usa o arquivo SQLite no disco efêmero.
 3. Confirme. A `SECRET_KEY` é gerada automaticamente pelo Render; `SQLITE_PATH`, `TIMEZONE` e `PYTHON_VERSION` já vêm do arquivo.
 
-O Render só pede os valores `sync: false` na **criação** do Blueprint. **No serviço que já existe**, adicione `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN` em **Environment** no painel do serviço (o mesmo vale para trocar a `GESTAO_CHAVE`). A cada push na `Principal!`, o Render faz um novo deploy.
+O Render só pede os valores `sync: false` na **criação** do Blueprint. **No serviço que já existe**, adicione `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN` em **Environment** no painel do serviço. A cada push na `Principal!`, o Render faz um novo deploy.
 
 ### Avisos do plano free
 
@@ -306,7 +304,7 @@ feature/*  ->  develop  ->  Principal!
 
 ## Limitações conhecidas e próximos passos
 
-- **Autenticação de demonstração.** Não há login real no servidor: o cadastro e o acesso ficam no navegador, e a API identifica o cliente só pelo header `X-Usuario-Id`, sem verificação (quem enviar o id de outro cliente age como ele). A gestão usa uma chave compartilhada (`GESTAO_CHAVE`) em vez de usuários. Próximo passo: login no servidor com token assinado e perfis de acesso.
+- **Autenticação de demonstração.** Não há login real no servidor: o cadastro e o acesso ficam no navegador, e a API identifica o cliente só pelo header `X-Usuario-Id`, sem verificação (quem enviar o id de outro cliente age como ele). A área de gestão e a escrita em `/api/agendamentos` são abertas, por ser um projeto demonstrativo. Próximo passo: login no servidor com token assinado e perfis de acesso.
 - **`servicos.html` ainda usa o `localStorage`.** O cadastro de serviços da gestão não está ligado à API; a área do cliente e a agenda leem os serviços do banco.
 - **Painel (`gestao.html`) e `pedidos.html` estão no fluxo antigo.** Ainda trabalham com dados do `localStorage`, não com os agendamentos da API. As outras telas da gestão (clientes, produtos, status, cancelamentos, avaliações, relatórios) são protótipos visuais.
 - **O veículo vem do perfil atual.** O agendamento não guarda uma cópia do veículo: se o cliente muda carro ou placa no perfil, os agendamentos antigos passam a mostrar os dados novos.

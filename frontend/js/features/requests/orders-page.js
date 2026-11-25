@@ -5,7 +5,7 @@ import {
 } from "../customer/customer-service.js";
 
 // Pedidos da gestão: a lista vem de GET /api/agendamentos e as mudanças de status vão para
-// /gestao/agendamentos/{id}/... (com a chave da gestão). Nada é guardado no localStorage.
+// /gestao/agendamentos/{id}/{ação}. Nada é guardado no localStorage.
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const dateTime = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
 

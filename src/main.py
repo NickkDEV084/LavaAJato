@@ -34,11 +34,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(
     title="LavaAjato API",
-    description=(
-        "API do sistema de gestão de lava-jato. Índice das rotas em JSON: GET /api. "
-        "POST, PUT e DELETE de /api/agendamentos exigem o header X-Chave-Gestao "
-        "(no /docs, cada uma dessas rotas tem um campo para ele)."
-    ),
+    description="API do sistema de gestão de lava-jato. Índice das rotas em JSON: GET /api.",
     version="0.1.0",
     lifespan=lifespan,
 )

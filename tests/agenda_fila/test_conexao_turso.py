@@ -23,8 +23,6 @@ from src.main import app
 
 URL_FALSA = "libsql://banco-falso.turso.io"
 TOKEN_FALSO = "token-falso"
-CHAVE = "chave-de-gestao-de-teste"
-GESTAO = {"X-Chave-Gestao": CHAVE}
 USUARIO = {"X-Usuario-Id": "u-turso"}
 
 
@@ -47,7 +45,6 @@ def chamadas_turso(
     monkeypatch.setattr(modulo_conexao.turso_serverless, "connect", _connect)
     monkeypatch.setattr(settings, "TURSO_DATABASE_URL", URL_FALSA)
     monkeypatch.setattr(settings, "TURSO_AUTH_TOKEN", SecretStr(TOKEN_FALSO))
-    monkeypatch.setattr(settings, "GESTAO_CHAVE", SecretStr(CHAVE))
     return chamadas
 
 
@@ -227,7 +224,7 @@ def test_ciclo_completo_da_api_no_modo_turso(api_turso: TestClient) -> None:
     cliente_id = resposta.json()["id"]
 
     corpo = {"cliente_id": cliente_id, "servico_id": 2, "data": "2099-05-10", "horario": "09:30"}
-    criado = api_turso.post("/api/agendamentos", json=corpo, headers=GESTAO)
+    criado = api_turso.post("/api/agendamentos", json=corpo)
     assert criado.status_code == 201, criado.text
     agendamento = criado.json()
     assert agendamento["servico"] == "Lavagem interna"
@@ -237,13 +234,11 @@ def test_ciclo_completo_da_api_no_modo_turso(api_turso: TestClient) -> None:
     assert api_turso.get("/cliente/agendamentos", headers=USUARIO).status_code == 200
 
     corpo_editado = {**corpo, "servico_id": 1, "status": "confirmado"}
-    editado = api_turso.put(
-        f"/api/agendamentos/{agendamento['id']}", json=corpo_editado, headers=GESTAO
-    )
+    editado = api_turso.put(f"/api/agendamentos/{agendamento['id']}", json=corpo_editado)
     assert editado.status_code == 200, editado.text
     assert editado.json()["status"] == "confirmado"
 
-    apagado = api_turso.delete(f"/api/agendamentos/{agendamento['id']}", headers=GESTAO)
+    apagado = api_turso.delete(f"/api/agendamentos/{agendamento['id']}")
     assert apagado.status_code == 200
     assert api_turso.get("/api/agendamentos").json() == []
 

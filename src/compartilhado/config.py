@@ -26,11 +26,6 @@ class Settings(BaseSettings):
     # Chave para assinar tokens (autenticação, futuramente).
     SECRET_KEY: str
 
-    # Chave da área de gestão (/gestao/*), enviada pelo front no header X-Chave-Gestao.
-    # Sem ela configurada, a API recusa todas as rotas de gestão (503).
-    # SecretStr esconde o valor em repr/logs (aparece como '**********').
-    GESTAO_CHAVE: SecretStr | None = None
-
     # Banco SQLite da área do cliente (agenda_fila). Caminho relativo é resolvido
     # a partir da raiz do projeto. Ex.: SQLITE_PATH=lavaajato.db
     SQLITE_PATH: Path = Path("lavaajato.db")

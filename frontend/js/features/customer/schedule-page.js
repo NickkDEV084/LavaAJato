@@ -1,6 +1,5 @@
 import {
   createAppointmentForManagement,
-  hasManagementKey,
   listAppointmentsForManagement,
   listCustomersForManagement,
   listServicesForManagement,
@@ -163,12 +162,15 @@ export function initSchedulePage() {
     renderAppointments(await listAppointmentsForManagement());
   }
 
-  /** Recarrega clientes, serviços e agendamentos. As chamadas são sequenciais para pedir a chave uma vez só. */
+  /** Recarrega clientes, serviços e agendamentos. */
   async function loadAll() {
     setBusy(true);
     try {
-      customers = await listCustomersForManagement();
-      const services = await listServicesForManagement();
+      const [loadedCustomers, services] = await Promise.all([
+        listCustomersForManagement(),
+        listServicesForManagement(),
+      ]);
+      customers = loadedCustomers;
       fillSelect(customerSelect, customers, (customer) => customer.name);
       fillSelect(serviceSelect, services, (service) => service.name);
       renderVehicles();
@@ -206,7 +208,7 @@ export function initSchedulePage() {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (busy) return;
-    // Se a agenda ainda não carregou (ex.: chave cancelada), a próxima ação é carregá-la.
+    // Se a agenda ainda não carregou (ex.: servidor fora do ar), a próxima ação é carregá-la.
     if (!loaded) {
       if (await loadAll()) showNotice("Agenda carregada. Preencha os campos e agende novamente.", "success");
       return;
@@ -231,9 +233,9 @@ export function initSchedulePage() {
     }
   });
 
-  // Ao voltar para a aba, busca de novo no banco (sem pedir a chave se ela foi descartada).
+  // Ao voltar para a aba, busca de novo no banco.
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState !== "visible" || busy || !hasManagementKey()) return;
+    if (document.visibilityState !== "visible" || busy) return;
     loadAll();
   });
 

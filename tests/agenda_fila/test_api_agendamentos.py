@@ -1,28 +1,19 @@
-"""API REST /api/agendamentos: CRUD em JSON, validação (400), 404 e proteção da escrita."""
+"""API REST /api/agendamentos: CRUD em JSON, validação (400) e 404."""
 
 import sqlite3
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from pydantic import SecretStr
 
 from src.agenda_fila.banco import SERVICOS_INICIAIS, inicializar_banco
-from src.compartilhado.config import settings
 
-CHAVE = "chave-de-gestao-de-teste"
-GESTAO = {"X-Chave-Gestao": CHAVE}
 FUTURO = {"data": "2099-05-10", "horario": "09:30"}
 CAMPOS_SAIDA = {
     "id", "cliente_id", "nome_cliente", "telefone_cliente", "carro", "marca", "placa",
     "servico_id", "servico", "data", "horario", "status", "preco", "duracao_min",
     "criado_em", "atualizado_em",
 }  # fmt: skip
-
-
-@pytest.fixture(autouse=True)
-def chave_configurada(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(settings, "GESTAO_CHAVE", SecretStr(CHAVE))
 
 
 @pytest.fixture
@@ -35,7 +26,7 @@ def cliente_id(api: TestClient) -> int:
 
 def _criar(api: TestClient, cliente_id: int, **extra) -> dict:
     corpo = {"cliente_id": cliente_id, "servico_id": 2, **FUTURO, **extra}
-    resposta = api.post("/api/agendamentos", json=corpo, headers=GESTAO)
+    resposta = api.post("/api/agendamentos", json=corpo)
     assert resposta.status_code == 201, resposta.json()
     return resposta.json()
 
@@ -63,14 +54,14 @@ def test_ciclo_completo_criar_listar_editar_apagar(
 
     corpo = {"cliente_id": cliente_id, "servico_id": 1, "data": "2099-06-01",
              "horario": "10:00", "status": "confirmado"}  # fmt: skip
-    editado = api.put(f"/api/agendamentos/{criado['id']}", json=corpo, headers=GESTAO)
+    editado = api.put(f"/api/agendamentos/{criado['id']}", json=corpo)
     assert editado.status_code == 200, editado.json()
     assert editado.json()["status"] == "confirmado"
     assert editado.json()["servico"] == "Higienização interna"
     assert editado.json()["preco"] == 40.0
     assert editado.json()["data"] == "2099-06-01"
 
-    apagado = api.delete(f"/api/agendamentos/{criado['id']}", headers=GESTAO)
+    apagado = api.delete(f"/api/agendamentos/{criado['id']}")
     assert apagado.status_code == 200
     assert apagado.json()["agendamento"]["id"] == criado["id"]
     assert banco.execute("SELECT COUNT(*) FROM agendamentos").fetchone()[0] == 0
@@ -92,7 +83,7 @@ def test_filtro_por_status(api: TestClient, cliente_id: int) -> None:
 def test_inexistente_retorna_404(api: TestClient, cliente_id: int, metodo: str, rota: str) -> None:
     corpo = {"cliente_id": cliente_id, "servico_id": 1, **FUTURO, "status": "agendado"}
     kwargs = {"json": corpo} if metodo == "put" else {}
-    erro = _erro(api.request(metodo, rota, headers=GESTAO, **kwargs), 404)
+    erro = _erro(api.request(metodo, rota, **kwargs), 404)
     assert erro["mensagem"] == "Agendamento não encontrado"
 
 
@@ -107,7 +98,7 @@ def test_inexistente_retorna_404(api: TestClient, cliente_id: int, metodo: str, 
     ],
 )
 def test_post_invalido_retorna_400(api: TestClient, cliente_id: int, corpo: dict) -> None:
-    erro = _erro(api.post("/api/agendamentos", json=corpo, headers=GESTAO), 400)
+    erro = _erro(api.post("/api/agendamentos", json=corpo), 400)
     assert erro["mensagem"] == "Dados inválidos na requisição"
     assert erro["detalhes"]
 
@@ -116,7 +107,7 @@ def test_json_malformado_retorna_400(api: TestClient) -> None:
     resposta = api.post(
         "/api/agendamentos",
         content="{nao é json",
-        headers={**GESTAO, "Content-Type": "application/json"},
+        headers={"Content-Type": "application/json"},
     )
     _erro(resposta, 400)
 
@@ -125,34 +116,21 @@ def test_referencias_e_horario_invalidos_retornam_400(api: TestClient, cliente_i
     rota = "/api/agendamentos"
     assert (
         "Cliente 999"
-        in _erro(
-            api.post(rota, json={"cliente_id": 999, "servico_id": 2, **FUTURO}, headers=GESTAO), 400
-        )["mensagem"]
+        in _erro(api.post(rota, json={"cliente_id": 999, "servico_id": 2, **FUTURO}), 400)[
+            "mensagem"
+        ]
     )
     assert "Serviço 999" in _erro(
-        api.post(rota, json={"cliente_id": cliente_id, "servico_id": 999, **FUTURO},
-                 headers=GESTAO), 400,
+        api.post(rota, json={"cliente_id": cliente_id, "servico_id": 999, **FUTURO}), 400,
     )["mensagem"]  # fmt: skip
     passado = {"cliente_id": cliente_id, "servico_id": 2, "data": "2000-01-01", "horario": "09:00"}
-    _erro(api.post(rota, json=passado, headers=GESTAO), 400)
+    _erro(api.post(rota, json=passado), 400)
 
 
 def test_put_status_invalido_retorna_400(api: TestClient, cliente_id: int) -> None:
     criado = _criar(api, cliente_id)
     corpo = {"cliente_id": cliente_id, "servico_id": 2, **FUTURO, "status": "voando"}
-    _erro(api.put(f"/api/agendamentos/{criado['id']}", json=corpo, headers=GESTAO), 400)
-
-
-def test_leitura_e_aberta_e_escrita_exige_chave(api: TestClient, cliente_id: int) -> None:
-    criado = _criar(api, cliente_id)
-    assert api.get("/api/agendamentos").status_code == 200
-    assert api.get(f"/api/agendamentos/{criado['id']}").status_code == 200
-
-    corpo = {"cliente_id": cliente_id, "servico_id": 2, **FUTURO}
-    _erro(api.post("/api/agendamentos", json=corpo), 401)
-    _erro(api.post("/api/agendamentos", json=corpo, headers={"X-Chave-Gestao": "errada"}), 403)
-    _erro(api.put(f"/api/agendamentos/{criado['id']}", json={**corpo, "status": "agendado"}), 401)
-    _erro(api.delete(f"/api/agendamentos/{criado['id']}"), 401)
+    _erro(api.put(f"/api/agendamentos/{criado['id']}", json=corpo), 400)
 
 
 def test_indice_api_lista_as_rotas(api: TestClient) -> None:

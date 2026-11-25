@@ -6,8 +6,8 @@
 - PUT    /api/agendamentos/{id}    substitui cliente, serviço, data, horário e status
 - DELETE /api/agendamentos/{id}    apaga de verdade e devolve o registro apagado
 
-Leitura aberta. Escrita (POST/PUT/DELETE) exige o header X-Chave-Gestao, a mesma
-chave da área de gestão. Erros: 400 (dados inválidos), 401/403 (chave), 404 (id).
+Leitura e escrita abertas, sem autenticação: o projeto é demonstrativo.
+Erros: 400 (dados inválidos), 404 (id).
 """
 
 import sqlite3
@@ -24,11 +24,9 @@ from src.agenda_fila.esquemas import (
     AgendamentoApiSaida,
     FiltroAgendamentosGestao,
 )
-from src.agenda_fila.rotas_gestao import exigir_gestor
 from src.compartilhado.erros import ErroApp
 
 Conexao = Annotated[sqlite3.Connection, Depends(get_conexao)]
-SoGestao = [Depends(exigir_gestor)]
 
 router = APIRouter(prefix="/api/agendamentos", tags=["API REST de agendamentos"])
 
@@ -101,7 +99,6 @@ def obter(conexao: Conexao, agendamento_id: int) -> AgendamentoApiSaida:
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
-    dependencies=SoGestao,
     summary="Criar agendamento (status inicial 'agendado')",
 )
 def criar(conexao: Conexao, dados: AgendamentoApiEntrada) -> AgendamentoApiSaida:
@@ -114,7 +111,7 @@ def criar(conexao: Conexao, dados: AgendamentoApiEntrada) -> AgendamentoApiSaida
     return _para_dict(_buscar(conexao, novo_id))
 
 
-@router.put("/{agendamento_id}", dependencies=SoGestao, summary="Atualizar agendamento")
+@router.put("/{agendamento_id}", summary="Atualizar agendamento")
 def atualizar(
     conexao: Conexao, agendamento_id: int, dados: AgendamentoApiAtualizacao
 ) -> AgendamentoApiSaida:
@@ -142,7 +139,7 @@ def atualizar(
     return _para_dict(_buscar(conexao, agendamento_id))
 
 
-@router.delete("/{agendamento_id}", dependencies=SoGestao, summary="Apagar agendamento")
+@router.delete("/{agendamento_id}", summary="Apagar agendamento")
 def apagar(conexao: Conexao, agendamento_id: int) -> AgendamentoApagado:
     agendamento = _para_dict(_buscar(conexao, agendamento_id))
     if not repositorio.apagar_agendamento(conexao, agendamento_id):

@@ -122,7 +122,7 @@ function byDateTime(left, right) {
 }
 
 // --- API REST pública (/api/agendamentos) -------------------------------------
-// Leitura aberta (sem chave), usada pelo Painel e pelos Pedidos da gestão.
+// Leitura usada pelo Painel e pelos Pedidos da gestão.
 
 export const APPOINTMENT_STATUS_LABELS = {
   agendado: "Agendado",
@@ -243,60 +243,15 @@ export async function completeCustomerAppointmentPayment(appointmentId) {
 }
 
 // --- Gestão (agenda.html, API /gestao/*) -------------------------------------
-// A chave da gestão fica só no sessionStorage desta aba e vai no header X-Chave-Gestao.
-// Nunca é gravada no localStorage nem registrada no console.
-const MANAGEMENT_KEY_STORAGE = "lavaajato:gestao:chave";
-const MISSING_KEY_MESSAGE = "A agenda da gestão precisa da chave de acesso. Informe a chave para continuar.";
+// Área aberta: o projeto é demonstrativo e não exige credencial da gestão.
 const MANAGEMENT_STATUS_ROUTES = {
   confirmado: "confirmar",
   "pronto-retirada": "pronto-retirada",
   cancelado: "cancelar",
 };
 
-function readManagementKey() {
-  try {
-    return sessionStorage.getItem(MANAGEMENT_KEY_STORAGE) || "";
-  } catch {
-    return "";
-  }
-}
-
-function forgetManagementKey() {
-  try {
-    sessionStorage.removeItem(MANAGEMENT_KEY_STORAGE);
-  } catch {
-    // Sem sessionStorage disponível, não há chave guardada para apagar.
-  }
-}
-
-export function hasManagementKey() {
-  return Boolean(readManagementKey());
-}
-
-/** Devolve a chave guardada ou pede ao usuário; cancelar o prompt gera um ApiError de chave ausente. */
-function requireManagementKey() {
-  const saved = readManagementKey();
-  if (saved) return saved;
-
-  const typed = (window.prompt("Informe a chave da gestão para acessar a agenda:") || "").trim();
-  if (!typed) throw new ApiError(MISSING_KEY_MESSAGE, 401);
-  try {
-    sessionStorage.setItem(MANAGEMENT_KEY_STORAGE, typed);
-  } catch {
-    // Sem sessionStorage a chave vale só para esta chamada; será pedida de novo.
-  }
-  return typed;
-}
-
-async function managementRequest(path, options = {}) {
-  const key = requireManagementKey();
-  try {
-    return await sendRequest(path, { ...options, headers: { "X-Chave-Gestao": key } });
-  } catch (error) {
-    // Chave ausente ou errada: descarta para pedir de novo na próxima ação. 503 não mexe na chave.
-    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) forgetManagementKey();
-    throw error;
-  }
+function managementRequest(path, options = {}) {
+  return sendRequest(path, options);
 }
 
 function customerFromApi(cliente) {
